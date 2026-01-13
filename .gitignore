@@ -1,0 +1,22 @@
+# Virtual Environment
+venv/
+venv_linux/
+
+# Python Caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Jupyter Notebook temporary files
+.ipynb_checkpoints/
+
+# VS Code 
+.history
+.ionide
+.vscode/*
+!.vscode/launch.json
+!.vscode/settings.json
+
+
+# Environment variables and keys
+.env
