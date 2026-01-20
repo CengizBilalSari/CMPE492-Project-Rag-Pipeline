@@ -1,4 +1,0 @@
-user_input,response,score,reason,reference
-What is Ragas 0.3?,Ragas 0.3 is a tool used to evaluate LLM apps.,fail,"The response contains an incorrect usage of a tool, as Ragas 0.3 is intended to evaluate LLM applications, not apps.",Ragas 0.3 is a library for evaluating LLM applications.
-What are the main features of Ragas?,"It features experiments, datasets, and evaluation metrics.",pass,"The response contains all required key points, including experiments, datasets, and metrics.",organised around - experiments - datasets - metrics.
-How to install Ragas?,You can install it using npm install .,fail,The provided response does not match the expected format.,install with pip using ragas[examples]
