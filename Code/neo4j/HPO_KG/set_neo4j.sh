@@ -15,10 +15,13 @@ docker run --name neo4j-hpo-container \
     -d \
     --restart unless-stopped \
     -v "$(pwd)/plugins:/plugins" \
-    -e NEO4J_PLUGINS='["apoc"]' \
+    -v "$(pwd)/data:/var/lib/neo4j/data" \
+    -v "$(pwd)/import:/var/lib/neo4j/import" \
+    -e NEO4J_PLUGINS='["apoc", "graph-data-science"]' \
     -e NEO4J_AUTH=..../.... \
-    -e NEO4J_dbms_security_procedures_unrestricted=apoc.*,n10s.* \
-    -e NEO4J_dbms_security_procedures_allowlist=apoc.*,n10s.* \
+    -e NEO4J_dbms_security_procedures_unrestricted=apoc.*,n10s.*,gds.* \
+    -e NEO4J_dbms_security_procedures_allowlist=apoc.*,n10s.*,gds.* \
+    -e NEO4J_dbms_memory_heap_max__size=2G \
     neo4j:latest
 # --- Command Explanation ---
 # --name: Assigns a unique name to the container for easy management.
