@@ -8,7 +8,6 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
 
 def main() -> None:
-    # Comet settings
     WORKSPACE = "cmpe492-team"
     PROJECT = "cmpe492-rag-pipeline-evaluation-tool"
 
@@ -16,7 +15,8 @@ def main() -> None:
         chunk_size=400,
         chunk_overlap=50,
         splitter_type="token",
-        llm_model="gpt-4o",
+        llm_provider="groq", # groq |openai
+        llm_model="llama-3.3-70b-versatile",# groq: llama-3.3-70b-versatile | openai: gpt-4o
         personas_k=3,
         tasks_n=2,
         qas_m=2,

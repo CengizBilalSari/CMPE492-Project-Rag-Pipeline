@@ -4,17 +4,33 @@ from typing import List
 
 from dotenv import load_dotenv
 from openai import OpenAI
+try:
+    from groq import Groq
+except Exception:  
+    Groq = None
 from .models import QAEntry
 
 load_dotenv()
 
 
 class QuestionLibraryGenerator:
-    def __init__(self, model: str):
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            raise ValueError("Missing OPENAI_API_KEY in .env file")
-        self.client = OpenAI(api_key=api_key)
+    def __init__(self, provider: str, model: str):
+        provider = provider.lower()
+        if provider == "openai":
+            api_key = os.getenv("OPENAI_API_KEY")
+            if not api_key:
+                raise ValueError("Missing OPENAI_API_KEY in .env file")
+            self.client = OpenAI(api_key=api_key)
+        elif provider == "groq":
+            if Groq is None:
+                raise ImportError("groq is not installed. Install with `pip install groq`.")
+            api_key = os.getenv("GROQ_API_KEY")
+            if not api_key:
+                raise ValueError("Missing GROQ_API_KEY in .env file")
+            self.client = Groq(api_key=api_key)
+        else:
+            raise ValueError(f"Unsupported llm_provider: {provider}")
+        self.provider = provider
         self.model = model
 
     def generate_suite(self, corpus_desc: str, K: int, N: int, M: int) -> List[QAEntry]:

@@ -21,7 +21,8 @@ class PipelineConfig:
     chunk_size: int = 300
     chunk_overlap: int = 50
     splitter_type: str = "token"  # token | char | sentence
-    llm_model: str = "gpt-4o"
+    llm_provider: str = "groq"  # openai | groq
+    llm_model: str = "llama-3.3-70b-versatile" # groq: llama-3.3-70b-versatile | openai: gpt-4o
     personas_k: int = 3
     tasks_n: int = 2
     qas_m: int = 2
