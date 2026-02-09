@@ -1,0 +1,150 @@
+# PrimeKG: Precision Medicine Knowledge Graph Documentation
+
+## 1. Overview
+**PrimeKG** is a multimodal knowledge graph designed to provide a holistic view of human diseases. It bridges the gap between low-level molecular biology and high-level clinical medicine by integrating **20 high-quality primary resources**.
+
+* **Total Nodes:** 129,375
+* **Total Edges:** 4,050,249
+* **Unique Diseases:** 17,080 (grouped for clinical relevance)
+* **Primary Data Sources:** 20 (including MONDO, Orphanet, Mayo Clinic, and HPO)
+
+---
+
+## 2. Graph Schema & Node Definitions
+PrimeKG categorizes biological and medical entities into 10 distinct node types.
+
+| Node Type | Example Name | Meaning/Role |
+| :--- | :--- | :--- |
+| **gene/protein** | `PHYHIP` | The functional units (genes/proteins) of the body. |
+| **disease** | `Osteogenesis imperfecta` | Grouped medical conditions (based on MONDO). |
+| **drug** | `Copper` | Chemical substances used for therapy or nutrition. |
+| **effect/phenotype** | `Growth abnormality` | Observable traits or symptoms of a condition. |
+| **anatomy** | `Uterine cervix` | Specific organs or tissues involved in a disease. |
+| **pathway** | `Apoptosis` | A sequence of molecular actions (biological "roadmap"). |
+| **biological_process**| `DNA repair` | Programmed cellular objectives (e.g., cell division). |
+| **molecular_function**| `Methyltransferase` | Specific biochemical activities at the molecular level. |
+| **cellular_component**| `Nucleus` | The cellular "location" where proteins function. |
+| **exposure** | `1-hydroxyphenanthrene`| Environmental factors or pollutants. |
+
+
+
+---
+
+## 3. Relationship (Edge) Types
+PrimeKG contains 30 types of relations. Unlike standard graphs, it distinguishes between how drugs and diseases interact.
+
+### Clinical Relationship Mapping
+### PrimeKG Relationship Reference Table
+
+This table describes the 30 relationship types found in PrimeKG, their display names in the graph, and the biological or clinical meaning of each connection.
+
+| Internal Relation Name | Display Name | Meaning / Scientific Context |
+| :--- | :--- | :--- |
+| **protein_protein** | ppi | **Protein-Protein Interaction:** Physical contact between two proteins to perform a biological function. |
+| **indication** | indication | **Approved Use:** The primary disease or condition for which a drug is FDA-approved. |
+| **contraindication** | contraindication | **Medical Warning:** A condition that makes a particular treatment or drug inadvisable/dangerous. |
+| **off-label use** | off-label use | **Unofficial Use:** Prescribing a drug for a condition other than its officially approved indication. |
+| **drug_drug** | synergistic interaction | When the combined effect of two drugs is greater than the sum of their separate parts. |
+| **drug_effect** | side effect | Secondary, usually adverse, physical effects caused by a drug. |
+| **drug_protein (target)** | target | The specific protein that a drug is designed to bind to for therapeutic effect. |
+| **drug_protein (enzyme)** | enzyme | The protein (usually in the liver) responsible for metabolizing/breaking down the drug. |
+| **drug_protein (carrier)** | carrier | Proteins that help transport the drug through the blood or across membranes. |
+| **drug_protein (transporter)** | transporter | Proteins that actively pump drug molecules into or out of cells. |
+| **disease_phenotype_positive** | phenotype present | **Symptoms:** A trait or symptom that is a known clinical manifestation of the disease. |
+| **disease_phenotype_negative** | phenotype absent | A trait that is specifically excluded or not seen in patients with this disease. |
+| **disease_protein** | associated with | A genetic or molecular link where a protein's behavior is tied to disease onset. |
+| **disease_disease** | parent-child | Hierarchical link (e.g., "Type 2 Diabetes" is a child of "Diabetes Mellitus"). |
+| **pathway_protein** | interacts with | Connects a protein to the biochemical pathway it "works" in. |
+| **pathway_pathway** | parent-child | Hierarchical link between broad pathways and specific sub-pathways. |
+| **bioprocess_protein** | interacts with | Links a protein to a specific biological goal (e.g., "Cellular Respiration"). |
+| **bioprocess_bioprocess** | parent-child | Hierarchy of biological processes. |
+| **molfunc_protein** | interacts with | Connects a protein to its specific molecular task (e.g., "DNA Binding"). |
+| **molfunc_molfunc** | parent-child | Hierarchy of molecular functions. |
+| **cellcomp_protein** | interacts with | Links a protein to the cellular structure where it is located (e.g., "Ribosome"). |
+| **cellcomp_cellcomp** | parent-child | Hierarchy of cellular locations. |
+| **anatomy_protein_present** | expression present | Indicates the protein is physically found in this specific organ or tissue. |
+| **anatomy_protein_absent** | expression absent | Indicates the protein is specifically not expressed in this tissue. |
+| **anatomy_anatomy** | parent-child | Anatomical hierarchy (e.g., "Aorta" is a child of "Circulatory System"). |
+| **phenotype_protein** | associated with | Direct link between a clinical symptom and a specific protein's activity. |
+| **phenotype_phenotype** | parent-child | Hierarchy of observable physical traits. |
+| **exposure_disease** | linked to | Environmental stressors (toxins/chemicals) that can cause or trigger a disease. |
+| **exposure_protein/molfunc/etc** | interacts with | How an environmental factor affects specific molecular or cellular components. |
+| **exposure_exposure** | parent-child | Hierarchy of environmental exposures. |
+
+## 4. Technical Methodologies
+
+### A. Disease Entity Resolution (Grouping)
+To prevent "noise," the researchers collapsed nearly **22,000** raw disease terms into **17,080** meaningful nodes.
+* **The Problem:** Ontologies often have redundant terms for the same condition (e.g., "Infantile Autism" vs "Autism, Infantile").
+* **The Solution:** Used **ClinicalBERT** (NLP Model) to calculate semantic similarity.
+* **The Threshold:** Terms with a **cosine similarity ≥ 0.98** were merged into a single `node_index`.
+
+### B. Multimodality (Features vs. Edges)
+PrimeKG is a **multimodal** graph, meaning it uses two types of data:
+1.  **Structural Edges:** Mathematical links (e.g., `Protein-A interacts-with Protein-B`) used for graph algorithms.
+2.  **Textual Features:** Large blocks of text (descriptions, symptoms, epidemiology) from **Mayo Clinic** and **Orphanet** stored directly inside the disease nodes.
+
+
+
+---
+
+## 5. Clinical Validation
+The utility of PrimeKG was proven through a **Drug Repurposing Case Study**:
+* **The Test:** Researchers checked the "network distance" between drugs and diseases they were approved for *after* the graph was built.
+* **The Result:** In **80% of cases**, the drug was significantly closer to the disease in the graph than expected by random chance.
+* **Conclusion:** This proves that PrimeKG can be used to predict which existing drugs might work for new diseases.
+
+---
+
+## 6. The attributes in the CSV files that we used
+#### KG
+- **relation**: The technical name of the link (e.g., indication, off-label use).
+- **display_relation**: The human-readable version (e.g., "treats", "causes side effect").
+- **x_index / y_index**: The unique numerical IDs for the two entities being linked.
+- **x_id / y_id**: The external database IDs (e.g., a DrugBank ID or a Mondo ID).
+- **x_type / y_type**: What kind of things they are (e.g., drug, disease, phenotype).
+- **x_name / y_name**: The common names (e.g., "Aspirin", "Headache").
+- **x_source / y_source** : Where this specific link was discovered (e.g., DrugBank, CTD).
+#### Nodes 
+- **node_index** : The primary key used to link to the other files.
+- **node_id**: The official medical code (HPO, MONDO, etc.).
+- **node_type**: The category (Drug, Disease, etc.).
+- **node_name**: The official name of the concept.
+- **node_source**: The vocabulary source (e.g., MSH for MeSH).
+#### drug_features
+- **description**: A general overview of the drug.
+- **half_life** : How long the drug stays in the body (critical for dosage reasoning).
+- **indication** : The specific medical condition the drug is approved to treat.
+- **mechanism_of_action** : (CRITICAL) The biological "how"—which receptors it hits.
+- **protein_binding** : How the drug hitches a ride in the blood.
+- **pharmacodynamics** : The effect the drug has on the body.
+- **state** : Physical state (Solid, Liquid, etc.).
+- **atc_1 through atc_4** : Anatomical Therapeutic Chemical classification (a hierarchy of what organ system the drug targets).
+- **category / group** : Labels like "Analgesic" or "Approved".
+- **pathway**: The biological "road" the drug travels in the cell.
+- **molecular_weight / tpsa / clogp**: Chemical properties (less relevant for diagnosis, more for drug discovery).
+
+#### disease_features
+- **mondo_id / mondo_name** : Official identifier and name in the Mondo Disease Ontology.
+
+- **group_id_bert / group_name_bert**: AI-clustered disease groups (useful for machine learning tasks).
+
+- **mondo_definition**: (CRITICAL) The textbook definition of the disease.
+
+- **umls_description**: A secondary description from the Unified Medical Language System.
+
+- **orphanet_definition / epidemiology / clinical_description**: Deep data for rare diseases (Orphanet focus).
+
+- **orphanet_prevalence**: How common the disease is (essential for calculating probability).
+
+- **mayo_symptoms**: (CRITICAL for DDXPlus) A list of symptoms used to diagnose the disease.
+
+- **mayo_causes**: What triggers the disease (environmental, genetic, etc.).
+
+- **mayo_risk_factors / complications**: What makes the disease worse and what it can lead to.
+
+- **mayo_prevention**: How to avoid it.
+
+- **mayo_see_doc**: "Red flag" signs that mean the patient needs an emergency room.
+
+

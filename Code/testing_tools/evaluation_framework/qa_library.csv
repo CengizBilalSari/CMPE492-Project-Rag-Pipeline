@@ -1,0 +1,837 @@
+question_type,source,question,answer,persona,task,chunk_id,chunk,file_path,retrieved_contexts
+Global,gpt-4o,What is the main goal of Dr. Emily Chen when using PrimeKG to study rare diseases?,"Dr. Emily Chen aims to utilize PrimeKG to explore the relationships between genes, proteins, and diseases to discover novel insights into disease mechanisms that could inform drug development.",Dr. Emily Chen - Clinical Researcher,Explore genetic relationships to understand rare diseases,0,"# PrimeKG: Precision Medicine Knowledge Graph Documentation
+
+## 1. Overview
+**PrimeKG** is a multimodal knowledge graph designed to provide a holistic view of human diseases. It bridges the gap between low-level molecular biology and high-level clinical medicine by integrating **20 high-quality primary resources**.
+
+* **Total Nodes:** 129,375
+* **Total Edges:** 4,050,249
+* **Unique Diseases:** 17,080 (grouped for clinical relevance)
+* **Primary Data Sources:** 20 (including MONDO, Orphanet, Mayo Clinic, and HPO)
+
+---
+
+## 2. Graph Schema & Node Definitions
+PrimeKG categorizes biological and medical entities into 10 distinct node types.
+
+| Node Type | Example Name | Meaning/Role |
+| :--- | :--- | :--- |
+| **gene/protein** | `PHYHIP` | The functional units (genes/proteins) of the body. |
+| **disease** | `Osteogenesis imperfecta` | Grouped medical conditions (based on MONDO). |
+| **drug** | `Copper` | Chemical substances used for therapy or nutrition. |
+| **effect/phenotype** | `Growth abnormality` | Observable traits or symptoms of a condition. |
+| **anatomy** | `Uterine cervix` | Specific organs or tissues involved in a disease. |
+| **pathway** | `Apoptosis` | A sequence of molecular actions (biological ""roadmap""). |
+| **biological_process**| `DNA repair` | Programmed cellular objectives (e.g., cell division). |
+| **molecular_function**| `Methyltransferase` | Specific biochemical activities at the molecular level. |
+| **cellular_component**| `Nucleus` | The cellular ""location"" where proteins function. |
+| **exposure** | `1-hydroxyphenanthrene`| Environmental",your_data.txt,[]
+Local Direct,gpt-4o,How does Dr. Emily Chen plan to use PrimeKG's features to address her difficulties in data integration?,"Dr. Emily Chen intends to use PrimeKG's advanced search capabilities to locate specific disease-gene interactions and its visualization tools to map disease networks with related biological entities, thereby addressing the challenge of merging molecular data with clinical outcomes.",Dr. Emily Chen - Clinical Researcher,Explore genetic relationships to understand rare diseases,0,"# PrimeKG: Precision Medicine Knowledge Graph Documentation
+
+## 1. Overview
+**PrimeKG** is a multimodal knowledge graph designed to provide a holistic view of human diseases. It bridges the gap between low-level molecular biology and high-level clinical medicine by integrating **20 high-quality primary resources**.
+
+* **Total Nodes:** 129,375
+* **Total Edges:** 4,050,249
+* **Unique Diseases:** 17,080 (grouped for clinical relevance)
+* **Primary Data Sources:** 20 (including MONDO, Orphanet, Mayo Clinic, and HPO)
+
+---
+
+## 2. Graph Schema & Node Definitions
+PrimeKG categorizes biological and medical entities into 10 distinct node types.
+
+| Node Type | Example Name | Meaning/Role |
+| :--- | :--- | :--- |
+| **gene/protein** | `PHYHIP` | The functional units (genes/proteins) of the body. |
+| **disease** | `Osteogenesis imperfecta` | Grouped medical conditions (based on MONDO). |
+| **drug** | `Copper` | Chemical substances used for therapy or nutrition. |
+| **effect/phenotype** | `Growth abnormality` | Observable traits or symptoms of a condition. |
+| **anatomy** | `Uterine cervix` | Specific organs or tissues involved in a disease. |
+| **pathway** | `Apoptosis` | A sequence of molecular actions (biological ""roadmap""). |
+| **biological_process**| `DNA repair` | Programmed cellular objectives (e.g., cell division). |
+| **molecular_function**| `Methyltransferase` | Specific biochemical activities at the molecular level. |
+| **cellular_component**| `Nucleus` | The cellular ""location"" where proteins function. |
+| **exposure** | `1-hydroxyphenanthrene`| Environmental",your_data.txt,[]
+One Fact,gpt-4o,What specific need does Dr. Jason Alvarez have when using PrimeKG in relation to drug discovery?,Dr. Jason Alvarez needs to identify new druggable targets and understand the pharmacodynamics and pharmacokinetics of potential compounds.,Dr. Jason Alvarez - Pharmaceutical Scientist,Identify novel druggable targets and analyze drug impacts,0,"# PrimeKG: Precision Medicine Knowledge Graph Documentation
+
+## 1. Overview
+**PrimeKG** is a multimodal knowledge graph designed to provide a holistic view of human diseases. It bridges the gap between low-level molecular biology and high-level clinical medicine by integrating **20 high-quality primary resources**.
+
+* **Total Nodes:** 129,375
+* **Total Edges:** 4,050,249
+* **Unique Diseases:** 17,080 (grouped for clinical relevance)
+* **Primary Data Sources:** 20 (including MONDO, Orphanet, Mayo Clinic, and HPO)
+
+---
+
+## 2. Graph Schema & Node Definitions
+PrimeKG categorizes biological and medical entities into 10 distinct node types.
+
+| Node Type | Example Name | Meaning/Role |
+| :--- | :--- | :--- |
+| **gene/protein** | `PHYHIP` | The functional units (genes/proteins) of the body. |
+| **disease** | `Osteogenesis imperfecta` | Grouped medical conditions (based on MONDO). |
+| **drug** | `Copper` | Chemical substances used for therapy or nutrition. |
+| **effect/phenotype** | `Growth abnormality` | Observable traits or symptoms of a condition. |
+| **anatomy** | `Uterine cervix` | Specific organs or tissues involved in a disease. |
+| **pathway** | `Apoptosis` | A sequence of molecular actions (biological ""roadmap""). |
+| **biological_process**| `DNA repair` | Programmed cellular objectives (e.g., cell division). |
+| **molecular_function**| `Methyltransferase` | Specific biochemical activities at the molecular level. |
+| **cellular_component**| `Nucleus` | The cellular ""location"" where proteins function. |
+| **exposure** | `1-hydroxyphenanthrene`| Environmental",your_data.txt,[]
+Local Direct,gpt-4o,How does Dr. Jason Alvarez plan to utilize PrimeKG to evaluate drug interactions with biological pathways?,"Dr. Jason Alvarez plans to leverage PrimeKG for pathway analysis and visualization linked with drug interactions, assisting in finding connections between specific drugs and biological pathways.",Dr. Jason Alvarez - Pharmaceutical Scientist,Identify novel druggable targets and analyze drug impacts,0,"# PrimeKG: Precision Medicine Knowledge Graph Documentation
+
+## 1. Overview
+**PrimeKG** is a multimodal knowledge graph designed to provide a holistic view of human diseases. It bridges the gap between low-level molecular biology and high-level clinical medicine by integrating **20 high-quality primary resources**.
+
+* **Total Nodes:** 129,375
+* **Total Edges:** 4,050,249
+* **Unique Diseases:** 17,080 (grouped for clinical relevance)
+* **Primary Data Sources:** 20 (including MONDO, Orphanet, Mayo Clinic, and HPO)
+
+---
+
+## 2. Graph Schema & Node Definitions
+PrimeKG categorizes biological and medical entities into 10 distinct node types.
+
+| Node Type | Example Name | Meaning/Role |
+| :--- | :--- | :--- |
+| **gene/protein** | `PHYHIP` | The functional units (genes/proteins) of the body. |
+| **disease** | `Osteogenesis imperfecta` | Grouped medical conditions (based on MONDO). |
+| **drug** | `Copper` | Chemical substances used for therapy or nutrition. |
+| **effect/phenotype** | `Growth abnormality` | Observable traits or symptoms of a condition. |
+| **anatomy** | `Uterine cervix` | Specific organs or tissues involved in a disease. |
+| **pathway** | `Apoptosis` | A sequence of molecular actions (biological ""roadmap""). |
+| **biological_process**| `DNA repair` | Programmed cellular objectives (e.g., cell division). |
+| **molecular_function**| `Methyltransferase` | Specific biochemical activities at the molecular level. |
+| **cellular_component**| `Nucleus` | The cellular ""location"" where proteins function. |
+| **exposure** | `1-hydroxyphenanthrene`| Environmental",your_data.txt,[]
+Global,gpt-4o,What is the main goal when exploring protein-protein interactions for cancer research?,"The main goal when exploring protein-protein interactions in cancer research is to understand the implications of these interactions on disease pathways, and to identify potential drug targets that could be leveraged for the development of new cancer therapies.","Dr. Emily Chen, a molecular biologist focused on cancer therapy development",Identify key players in disease mechanisms through protein interaction networks,1," | Specific biochemical activities at the molecular level. |
+| **cellular_component**| `Nucleus` | The cellular ""location"" where proteins function. |
+| **exposure** | `1-hydroxyphenanthrene`| Environmental factors or pollutants. |
+
+
+
+---
+
+## 3. Relationship (Edge) Types
+PrimeKG contains 30 types of relations. Unlike standard graphs, it distinguishes between how drugs and diseases interact.
+
+### Clinical Relationship Mapping
+### PrimeKG Relationship Reference Table
+
+This table describes the 30 relationship types found in PrimeKG, their display names in the graph, and the biological or clinical meaning of each connection.
+
+| Internal Relation Name | Display Name | Meaning / Scientific Context |
+| :--- | :--- | :--- |
+| **protein_protein** | ppi | **Protein-Protein Interaction:** Physical contact between two proteins to perform a biological function. |
+| **indication** | indication | **Approved Use:** The primary disease or condition for which a drug is FDA-approved. |
+| **contraindication** | contraindication | **Medical Warning:** A condition that makes a particular treatment or drug inadvisable/dangerous. |
+| **off-label use** | off-label use | **Unofficial Use:** Prescribing a drug for a condition other than its officially approved indication. |
+| **drug_drug** | synergistic interaction | When the combined effect of two drugs is greater than the sum of their separate parts. |
+| **drug_effect** | side effect | Secondary, usually adverse, physical effects caused by a drug. |
+| **drug_protein (target)** | target | The specific protein that a drug is designed to bind to for therapeutic effect. |
+| **drug_protein (enzyme)** | enzyme | The protein (usually in the liver) responsible for metabolizing/breaking down the drug. |
+| **drug_protein (carrier)** | carrier | Proteins that help",your_data.txt,[]
+Local Direct,gpt-4o,How does exposure data contribute to identifying disease mechanisms in protein networks?,"Exposure data contributes to identifying disease mechanisms by providing insights into how environmental factors impact cellular components, which can affect protein interactions and potentially reveal key players in disease pathways.","Dr. Emily Chen, a molecular biologist focused on cancer therapy development",Identify key players in disease mechanisms through protein interaction networks,1," | Specific biochemical activities at the molecular level. |
+| **cellular_component**| `Nucleus` | The cellular ""location"" where proteins function. |
+| **exposure** | `1-hydroxyphenanthrene`| Environmental factors or pollutants. |
+
+
+
+---
+
+## 3. Relationship (Edge) Types
+PrimeKG contains 30 types of relations. Unlike standard graphs, it distinguishes between how drugs and diseases interact.
+
+### Clinical Relationship Mapping
+### PrimeKG Relationship Reference Table
+
+This table describes the 30 relationship types found in PrimeKG, their display names in the graph, and the biological or clinical meaning of each connection.
+
+| Internal Relation Name | Display Name | Meaning / Scientific Context |
+| :--- | :--- | :--- |
+| **protein_protein** | ppi | **Protein-Protein Interaction:** Physical contact between two proteins to perform a biological function. |
+| **indication** | indication | **Approved Use:** The primary disease or condition for which a drug is FDA-approved. |
+| **contraindication** | contraindication | **Medical Warning:** A condition that makes a particular treatment or drug inadvisable/dangerous. |
+| **off-label use** | off-label use | **Unofficial Use:** Prescribing a drug for a condition other than its officially approved indication. |
+| **drug_drug** | synergistic interaction | When the combined effect of two drugs is greater than the sum of their separate parts. |
+| **drug_effect** | side effect | Secondary, usually adverse, physical effects caused by a drug. |
+| **drug_protein (target)** | target | The specific protein that a drug is designed to bind to for therapeutic effect. |
+| **drug_protein (enzyme)** | enzyme | The protein (usually in the liver) responsible for metabolizing/breaking down the drug. |
+| **drug_protein (carrier)** | carrier | Proteins that help",your_data.txt,[]
+Global,gpt-4o,What overarching outcome is desired by exploring drug interactions at the molecular level?,"The overarching outcome of exploring drug interactions at the molecular level is to improve patient outcomes through tailored drug therapies that are informed by molecular and clinical data, enhancing efficacy while minimizing adverse effects.","Dr. John Patel, a clinical pharmacologist aiming to tailor drug therapies",Analyze drug interactions to improve patient outcomes,1," | Specific biochemical activities at the molecular level. |
+| **cellular_component**| `Nucleus` | The cellular ""location"" where proteins function. |
+| **exposure** | `1-hydroxyphenanthrene`| Environmental factors or pollutants. |
+
+
+
+---
+
+## 3. Relationship (Edge) Types
+PrimeKG contains 30 types of relations. Unlike standard graphs, it distinguishes between how drugs and diseases interact.
+
+### Clinical Relationship Mapping
+### PrimeKG Relationship Reference Table
+
+This table describes the 30 relationship types found in PrimeKG, their display names in the graph, and the biological or clinical meaning of each connection.
+
+| Internal Relation Name | Display Name | Meaning / Scientific Context |
+| :--- | :--- | :--- |
+| **protein_protein** | ppi | **Protein-Protein Interaction:** Physical contact between two proteins to perform a biological function. |
+| **indication** | indication | **Approved Use:** The primary disease or condition for which a drug is FDA-approved. |
+| **contraindication** | contraindication | **Medical Warning:** A condition that makes a particular treatment or drug inadvisable/dangerous. |
+| **off-label use** | off-label use | **Unofficial Use:** Prescribing a drug for a condition other than its officially approved indication. |
+| **drug_drug** | synergistic interaction | When the combined effect of two drugs is greater than the sum of their separate parts. |
+| **drug_effect** | side effect | Secondary, usually adverse, physical effects caused by a drug. |
+| **drug_protein (target)** | target | The specific protein that a drug is designed to bind to for therapeutic effect. |
+| **drug_protein (enzyme)** | enzyme | The protein (usually in the liver) responsible for metabolizing/breaking down the drug. |
+| **drug_protein (carrier)** | carrier | Proteins that help",your_data.txt,[]
+One Fact,gpt-4o,What specific feature in PrimeKG helps identify potential drug-drug interactions?,"A specific feature in PrimeKG that helps identify potential drug-drug interactions is the provision of insights into synergistic effects, contraindications, and side effects, enabling informed clinical decision-making.","Dr. John Patel, a clinical pharmacologist aiming to tailor drug therapies",Analyze drug interactions to improve patient outcomes,1," | Specific biochemical activities at the molecular level. |
+| **cellular_component**| `Nucleus` | The cellular ""location"" where proteins function. |
+| **exposure** | `1-hydroxyphenanthrene`| Environmental factors or pollutants. |
+
+
+
+---
+
+## 3. Relationship (Edge) Types
+PrimeKG contains 30 types of relations. Unlike standard graphs, it distinguishes between how drugs and diseases interact.
+
+### Clinical Relationship Mapping
+### PrimeKG Relationship Reference Table
+
+This table describes the 30 relationship types found in PrimeKG, their display names in the graph, and the biological or clinical meaning of each connection.
+
+| Internal Relation Name | Display Name | Meaning / Scientific Context |
+| :--- | :--- | :--- |
+| **protein_protein** | ppi | **Protein-Protein Interaction:** Physical contact between two proteins to perform a biological function. |
+| **indication** | indication | **Approved Use:** The primary disease or condition for which a drug is FDA-approved. |
+| **contraindication** | contraindication | **Medical Warning:** A condition that makes a particular treatment or drug inadvisable/dangerous. |
+| **off-label use** | off-label use | **Unofficial Use:** Prescribing a drug for a condition other than its officially approved indication. |
+| **drug_drug** | synergistic interaction | When the combined effect of two drugs is greater than the sum of their separate parts. |
+| **drug_effect** | side effect | Secondary, usually adverse, physical effects caused by a drug. |
+| **drug_protein (target)** | target | The specific protein that a drug is designed to bind to for therapeutic effect. |
+| **drug_protein (enzyme)** | enzyme | The protein (usually in the liver) responsible for metabolizing/breaking down the drug. |
+| **drug_protein (carrier)** | carrier | Proteins that help",your_data.txt,[]
+Global,gpt-4o,What is the main research focus in analyzing metabolic pathways for drug compounds?,The main focus is to understand how specific enzymes metabolize candidate drugs and identify novel drug-protein interactions to enhance therapeutic efficacy and improve patient outcomes with safer drugs.,"Dr. Emily Thompson, a pharmaceutical research scientist with 15 years of experience",Analyze metabolic pathways influenced by drug compounds,2," therapeutic effect. |
+| **drug_protein (enzyme)** | enzyme | The protein (usually in the liver) responsible for metabolizing/breaking down the drug. |
+| **drug_protein (carrier)** | carrier | Proteins that help transport the drug through the blood or across membranes. |
+| **drug_protein (transporter)** | transporter | Proteins that actively pump drug molecules into or out of cells. |
+| **disease_phenotype_positive** | phenotype present | **Symptoms:** A trait or symptom that is a known clinical manifestation of the disease. |
+| **disease_phenotype_negative** | phenotype absent | A trait that is specifically excluded or not seen in patients with this disease. |
+| **disease_protein** | associated with | A genetic or molecular link where a protein's behavior is tied to disease onset. |
+| **disease_disease** | parent-child | Hierarchical link (e.g., ""Type 2 Diabetes"" is a child of ""Diabetes Mellitus""). |
+| **pathway_protein** | interacts with | Connects a protein to the biochemical pathway it ""works"" in. |
+| **pathway_pathway** | parent-child | Hierarchical link between broad pathways and specific sub-pathways. |
+| **bioprocess_protein** | interacts with | Links a protein to a specific biological goal (e.g., ""Cellular Respiration""). |
+| **bioprocess_bioprocess** | parent-child | Hierarchy of biological processes. |
+| **molfunc_protein** | interacts with | Connects a protein to its specific molecular task (e.g., ""DNA Binding""). |
+| **molfunc_molfunc** | parent-child | Hierarchy of molecular functions. |
+| **cellcomp_protein** | interacts with | Links a protein to the cellular structure where it is located (e.g., ""Ribosome""). |
+| **cellcomp_cellcomp** | parent",your_data.txt,[]
+Local Direct,gpt-4o,Which collaborations are crucial for predicting drug behavior in metabolic pathways?,Collaborations with biochemists and geneticists are crucial for predicting drug behavior in metabolic pathways by analyzing drug-enzyme interaction data.,"Dr. Emily Thompson, a pharmaceutical research scientist with 15 years of experience",Analyze metabolic pathways influenced by drug compounds,2," therapeutic effect. |
+| **drug_protein (enzyme)** | enzyme | The protein (usually in the liver) responsible for metabolizing/breaking down the drug. |
+| **drug_protein (carrier)** | carrier | Proteins that help transport the drug through the blood or across membranes. |
+| **drug_protein (transporter)** | transporter | Proteins that actively pump drug molecules into or out of cells. |
+| **disease_phenotype_positive** | phenotype present | **Symptoms:** A trait or symptom that is a known clinical manifestation of the disease. |
+| **disease_phenotype_negative** | phenotype absent | A trait that is specifically excluded or not seen in patients with this disease. |
+| **disease_protein** | associated with | A genetic or molecular link where a protein's behavior is tied to disease onset. |
+| **disease_disease** | parent-child | Hierarchical link (e.g., ""Type 2 Diabetes"" is a child of ""Diabetes Mellitus""). |
+| **pathway_protein** | interacts with | Connects a protein to the biochemical pathway it ""works"" in. |
+| **pathway_pathway** | parent-child | Hierarchical link between broad pathways and specific sub-pathways. |
+| **bioprocess_protein** | interacts with | Links a protein to a specific biological goal (e.g., ""Cellular Respiration""). |
+| **bioprocess_bioprocess** | parent-child | Hierarchy of biological processes. |
+| **molfunc_protein** | interacts with | Connects a protein to its specific molecular task (e.g., ""DNA Binding""). |
+| **molfunc_molfunc** | parent-child | Hierarchy of molecular functions. |
+| **cellcomp_protein** | interacts with | Links a protein to the cellular structure where it is located (e.g., ""Ribosome""). |
+| **cellcomp_cellcomp** | parent",your_data.txt,[]
+Global,gpt-4o,What is the primary aim of linking genetic markers to disease phenotypes in clinical genetics?,The primary aim is to correlate genetic markers with disease phenotypes to guide personalized medicine approaches and improve patient care through detailed genetic insights.,"Dr. Ryan Chen, a clinical geneticist with 10 years of experience",Link genetic markers to disease phenotypes,2," therapeutic effect. |
+| **drug_protein (enzyme)** | enzyme | The protein (usually in the liver) responsible for metabolizing/breaking down the drug. |
+| **drug_protein (carrier)** | carrier | Proteins that help transport the drug through the blood or across membranes. |
+| **drug_protein (transporter)** | transporter | Proteins that actively pump drug molecules into or out of cells. |
+| **disease_phenotype_positive** | phenotype present | **Symptoms:** A trait or symptom that is a known clinical manifestation of the disease. |
+| **disease_phenotype_negative** | phenotype absent | A trait that is specifically excluded or not seen in patients with this disease. |
+| **disease_protein** | associated with | A genetic or molecular link where a protein's behavior is tied to disease onset. |
+| **disease_disease** | parent-child | Hierarchical link (e.g., ""Type 2 Diabetes"" is a child of ""Diabetes Mellitus""). |
+| **pathway_protein** | interacts with | Connects a protein to the biochemical pathway it ""works"" in. |
+| **pathway_pathway** | parent-child | Hierarchical link between broad pathways and specific sub-pathways. |
+| **bioprocess_protein** | interacts with | Links a protein to a specific biological goal (e.g., ""Cellular Respiration""). |
+| **bioprocess_bioprocess** | parent-child | Hierarchy of biological processes. |
+| **molfunc_protein** | interacts with | Connects a protein to its specific molecular task (e.g., ""DNA Binding""). |
+| **molfunc_molfunc** | parent-child | Hierarchy of molecular functions. |
+| **cellcomp_protein** | interacts with | Links a protein to the cellular structure where it is located (e.g., ""Ribosome""). |
+| **cellcomp_cellcomp** | parent",your_data.txt,[]
+One Fact,gpt-4o,What is one specific challenge Dr. Ryan Chen faces in his role?,One specific challenge Dr. Ryan Chen faces is interpreting genetic data for rare diseases.,"Dr. Ryan Chen, a clinical geneticist with 10 years of experience",Link genetic markers to disease phenotypes,2," therapeutic effect. |
+| **drug_protein (enzyme)** | enzyme | The protein (usually in the liver) responsible for metabolizing/breaking down the drug. |
+| **drug_protein (carrier)** | carrier | Proteins that help transport the drug through the blood or across membranes. |
+| **drug_protein (transporter)** | transporter | Proteins that actively pump drug molecules into or out of cells. |
+| **disease_phenotype_positive** | phenotype present | **Symptoms:** A trait or symptom that is a known clinical manifestation of the disease. |
+| **disease_phenotype_negative** | phenotype absent | A trait that is specifically excluded or not seen in patients with this disease. |
+| **disease_protein** | associated with | A genetic or molecular link where a protein's behavior is tied to disease onset. |
+| **disease_disease** | parent-child | Hierarchical link (e.g., ""Type 2 Diabetes"" is a child of ""Diabetes Mellitus""). |
+| **pathway_protein** | interacts with | Connects a protein to the biochemical pathway it ""works"" in. |
+| **pathway_pathway** | parent-child | Hierarchical link between broad pathways and specific sub-pathways. |
+| **bioprocess_protein** | interacts with | Links a protein to a specific biological goal (e.g., ""Cellular Respiration""). |
+| **bioprocess_bioprocess** | parent-child | Hierarchy of biological processes. |
+| **molfunc_protein** | interacts with | Connects a protein to its specific molecular task (e.g., ""DNA Binding""). |
+| **molfunc_molfunc** | parent-child | Hierarchy of molecular functions. |
+| **cellcomp_protein** | interacts with | Links a protein to the cellular structure where it is located (e.g., ""Ribosome""). |
+| **cellcomp_cellcomp** | parent",your_data.txt,[]
+Global,gpt-4o,What overarching insights can be drawn from the dataset regarding protein and phenotype correlations?,"The dataset reveals key patterns in protein expression linked with specific phenotypic outcomes in rare diseases, enabling researchers to trace the molecular pathways that contribute to these conditions.","Dr. Maria Gonzalez, a senior biomedical researcher specializing in genetics",Investigate the correlation between specific proteins and rare disease phenotypes,3," parent-child | Hierarchy of molecular functions. |
+| **cellcomp_protein** | interacts with | Links a protein to the cellular structure where it is located (e.g., ""Ribosome""). |
+| **cellcomp_cellcomp** | parent-child | Hierarchy of cellular locations. |
+| **anatomy_protein_present** | expression present | Indicates the protein is physically found in this specific organ or tissue. |
+| **anatomy_protein_absent** | expression absent | Indicates the protein is specifically not expressed in this tissue. |
+| **anatomy_anatomy** | parent-child | Anatomical hierarchy (e.g., ""Aorta"" is a child of ""Circulatory System""). |
+| **phenotype_protein** | associated with | Direct link between a clinical symptom and a specific protein's activity. |
+| **phenotype_phenotype** | parent-child | Hierarchy of observable physical traits. |
+| **exposure_disease** | linked to | Environmental stressors (toxins/chemicals) that can cause or trigger a disease. |
+| **exposure_protein/molfunc/etc** | interacts with | How an environmental factor affects specific molecular or cellular components. |
+| **exposure_exposure** | parent-child | Hierarchy of environmental exposures. |
+
+## 4. Technical Methodologies
+
+### A. Disease Entity Resolution (Grouping)
+To prevent ""noise,"" the researchers collapsed nearly **22,000** raw disease terms into **17,080** meaningful nodes.
+* **The Problem:** Ontologies often have redundant terms for the same condition (e.g., ""Infantile Autism"" vs ""Autism, Infantile"").
+* **The Solution:** Used **ClinicalBERT** (NLP Model) to calculate semantic similarity.
+* **The Threshold:** Terms with a **cosine similarity ≥ 0.98** were merged into a single `node_index`.
+
+### B. Multimodality (Features vs. Ed",your_data.txt,[]
+Local Direct,gpt-4o,How do proteins expressed in specific tissues relate to specific disease phenotypes?,"The dataset shows that proteins expressed in tissues like the liver, heart, and brain have strong correlations with particular disease phenotypes, as mapped through molecular function annotations.","Dr. Maria Gonzalez, a senior biomedical researcher specializing in genetics",Investigate the correlation between specific proteins and rare disease phenotypes,3," parent-child | Hierarchy of molecular functions. |
+| **cellcomp_protein** | interacts with | Links a protein to the cellular structure where it is located (e.g., ""Ribosome""). |
+| **cellcomp_cellcomp** | parent-child | Hierarchy of cellular locations. |
+| **anatomy_protein_present** | expression present | Indicates the protein is physically found in this specific organ or tissue. |
+| **anatomy_protein_absent** | expression absent | Indicates the protein is specifically not expressed in this tissue. |
+| **anatomy_anatomy** | parent-child | Anatomical hierarchy (e.g., ""Aorta"" is a child of ""Circulatory System""). |
+| **phenotype_protein** | associated with | Direct link between a clinical symptom and a specific protein's activity. |
+| **phenotype_phenotype** | parent-child | Hierarchy of observable physical traits. |
+| **exposure_disease** | linked to | Environmental stressors (toxins/chemicals) that can cause or trigger a disease. |
+| **exposure_protein/molfunc/etc** | interacts with | How an environmental factor affects specific molecular or cellular components. |
+| **exposure_exposure** | parent-child | Hierarchy of environmental exposures. |
+
+## 4. Technical Methodologies
+
+### A. Disease Entity Resolution (Grouping)
+To prevent ""noise,"" the researchers collapsed nearly **22,000** raw disease terms into **17,080** meaningful nodes.
+* **The Problem:** Ontologies often have redundant terms for the same condition (e.g., ""Infantile Autism"" vs ""Autism, Infantile"").
+* **The Solution:** Used **ClinicalBERT** (NLP Model) to calculate semantic similarity.
+* **The Threshold:** Terms with a **cosine similarity ≥ 0.98** were merged into a single `node_index`.
+
+### B. Multimodality (Features vs. Ed",your_data.txt,[]
+Local Direct,gpt-4o,Which environmental chemicals are known to interact with drug metabolism proteins?,"The dataset lists chemicals such as benzene, lead, and mercury as key environmental agents that interact with CYP450 enzymes, potentially altering drug metabolism processes.","Josh Carter, clinical pharmacologist focused on drug-target interactions",Identify potential drug targets influenced by environmental interactions,3," parent-child | Hierarchy of molecular functions. |
+| **cellcomp_protein** | interacts with | Links a protein to the cellular structure where it is located (e.g., ""Ribosome""). |
+| **cellcomp_cellcomp** | parent-child | Hierarchy of cellular locations. |
+| **anatomy_protein_present** | expression present | Indicates the protein is physically found in this specific organ or tissue. |
+| **anatomy_protein_absent** | expression absent | Indicates the protein is specifically not expressed in this tissue. |
+| **anatomy_anatomy** | parent-child | Anatomical hierarchy (e.g., ""Aorta"" is a child of ""Circulatory System""). |
+| **phenotype_protein** | associated with | Direct link between a clinical symptom and a specific protein's activity. |
+| **phenotype_phenotype** | parent-child | Hierarchy of observable physical traits. |
+| **exposure_disease** | linked to | Environmental stressors (toxins/chemicals) that can cause or trigger a disease. |
+| **exposure_protein/molfunc/etc** | interacts with | How an environmental factor affects specific molecular or cellular components. |
+| **exposure_exposure** | parent-child | Hierarchy of environmental exposures. |
+
+## 4. Technical Methodologies
+
+### A. Disease Entity Resolution (Grouping)
+To prevent ""noise,"" the researchers collapsed nearly **22,000** raw disease terms into **17,080** meaningful nodes.
+* **The Problem:** Ontologies often have redundant terms for the same condition (e.g., ""Infantile Autism"" vs ""Autism, Infantile"").
+* **The Solution:** Used **ClinicalBERT** (NLP Model) to calculate semantic similarity.
+* **The Threshold:** Terms with a **cosine similarity ≥ 0.98** were merged into a single `node_index`.
+
+### B. Multimodality (Features vs. Ed",your_data.txt,[]
+One Fact,gpt-4o,What protein is most frequently cited in drug-environment interaction studies?,Cytochrome P4501A2 appears as the most frequently cited protein in studies exploring drug-environment interactions within the dataset.,"Josh Carter, clinical pharmacologist focused on drug-target interactions",Identify potential drug targets influenced by environmental interactions,3," parent-child | Hierarchy of molecular functions. |
+| **cellcomp_protein** | interacts with | Links a protein to the cellular structure where it is located (e.g., ""Ribosome""). |
+| **cellcomp_cellcomp** | parent-child | Hierarchy of cellular locations. |
+| **anatomy_protein_present** | expression present | Indicates the protein is physically found in this specific organ or tissue. |
+| **anatomy_protein_absent** | expression absent | Indicates the protein is specifically not expressed in this tissue. |
+| **anatomy_anatomy** | parent-child | Anatomical hierarchy (e.g., ""Aorta"" is a child of ""Circulatory System""). |
+| **phenotype_protein** | associated with | Direct link between a clinical symptom and a specific protein's activity. |
+| **phenotype_phenotype** | parent-child | Hierarchy of observable physical traits. |
+| **exposure_disease** | linked to | Environmental stressors (toxins/chemicals) that can cause or trigger a disease. |
+| **exposure_protein/molfunc/etc** | interacts with | How an environmental factor affects specific molecular or cellular components. |
+| **exposure_exposure** | parent-child | Hierarchy of environmental exposures. |
+
+## 4. Technical Methodologies
+
+### A. Disease Entity Resolution (Grouping)
+To prevent ""noise,"" the researchers collapsed nearly **22,000** raw disease terms into **17,080** meaningful nodes.
+* **The Problem:** Ontologies often have redundant terms for the same condition (e.g., ""Infantile Autism"" vs ""Autism, Infantile"").
+* **The Solution:** Used **ClinicalBERT** (NLP Model) to calculate semantic similarity.
+* **The Threshold:** Terms with a **cosine similarity ≥ 0.98** were merged into a single `node_index`.
+
+### B. Multimodality (Features vs. Ed",your_data.txt,[]
+Global,gpt-4o,What are the main environmental factors contributing to disease prevalence according to the dataset?,"The dataset underscores prevalent environmental factors such as air pollution, water contaminants, and industrial chemicals as significant contributors to diseases such as respiratory ailments and cancers.","Lisa Kim, public health policy analyst with a specialization in epidemiology",Develop policies to mitigate disease prevalence linked to environmental exposures,3," parent-child | Hierarchy of molecular functions. |
+| **cellcomp_protein** | interacts with | Links a protein to the cellular structure where it is located (e.g., ""Ribosome""). |
+| **cellcomp_cellcomp** | parent-child | Hierarchy of cellular locations. |
+| **anatomy_protein_present** | expression present | Indicates the protein is physically found in this specific organ or tissue. |
+| **anatomy_protein_absent** | expression absent | Indicates the protein is specifically not expressed in this tissue. |
+| **anatomy_anatomy** | parent-child | Anatomical hierarchy (e.g., ""Aorta"" is a child of ""Circulatory System""). |
+| **phenotype_protein** | associated with | Direct link between a clinical symptom and a specific protein's activity. |
+| **phenotype_phenotype** | parent-child | Hierarchy of observable physical traits. |
+| **exposure_disease** | linked to | Environmental stressors (toxins/chemicals) that can cause or trigger a disease. |
+| **exposure_protein/molfunc/etc** | interacts with | How an environmental factor affects specific molecular or cellular components. |
+| **exposure_exposure** | parent-child | Hierarchy of environmental exposures. |
+
+## 4. Technical Methodologies
+
+### A. Disease Entity Resolution (Grouping)
+To prevent ""noise,"" the researchers collapsed nearly **22,000** raw disease terms into **17,080** meaningful nodes.
+* **The Problem:** Ontologies often have redundant terms for the same condition (e.g., ""Infantile Autism"" vs ""Autism, Infantile"").
+* **The Solution:** Used **ClinicalBERT** (NLP Model) to calculate semantic similarity.
+* **The Threshold:** Terms with a **cosine similarity ≥ 0.98** were merged into a single `node_index`.
+
+### B. Multimodality (Features vs. Ed",your_data.txt,[]
+One Fact,gpt-4o,Which pollutant is most commonly associated with cardiovascular diseases according to the dataset?,Particulate matter (PM2.5) is most commonly associated with increased risk of cardiovascular diseases as identified within the dataset.,"Lisa Kim, public health policy analyst with a specialization in epidemiology",Develop policies to mitigate disease prevalence linked to environmental exposures,3," parent-child | Hierarchy of molecular functions. |
+| **cellcomp_protein** | interacts with | Links a protein to the cellular structure where it is located (e.g., ""Ribosome""). |
+| **cellcomp_cellcomp** | parent-child | Hierarchy of cellular locations. |
+| **anatomy_protein_present** | expression present | Indicates the protein is physically found in this specific organ or tissue. |
+| **anatomy_protein_absent** | expression absent | Indicates the protein is specifically not expressed in this tissue. |
+| **anatomy_anatomy** | parent-child | Anatomical hierarchy (e.g., ""Aorta"" is a child of ""Circulatory System""). |
+| **phenotype_protein** | associated with | Direct link between a clinical symptom and a specific protein's activity. |
+| **phenotype_phenotype** | parent-child | Hierarchy of observable physical traits. |
+| **exposure_disease** | linked to | Environmental stressors (toxins/chemicals) that can cause or trigger a disease. |
+| **exposure_protein/molfunc/etc** | interacts with | How an environmental factor affects specific molecular or cellular components. |
+| **exposure_exposure** | parent-child | Hierarchy of environmental exposures. |
+
+## 4. Technical Methodologies
+
+### A. Disease Entity Resolution (Grouping)
+To prevent ""noise,"" the researchers collapsed nearly **22,000** raw disease terms into **17,080** meaningful nodes.
+* **The Problem:** Ontologies often have redundant terms for the same condition (e.g., ""Infantile Autism"" vs ""Autism, Infantile"").
+* **The Solution:** Used **ClinicalBERT** (NLP Model) to calculate semantic similarity.
+* **The Threshold:** Terms with a **cosine similarity ≥ 0.98** were merged into a single `node_index`.
+
+### B. Multimodality (Features vs. Ed",your_data.txt,[]
+Global,gpt-4o,What is the overall strategy for utilizing PrimeKG in identifying potential drug repurposing opportunities for rare cancers?,"The strategy involves leveraging PrimeKG's comprehensive dataset to explore the connections between various drugs and rare cancer types. Dr. Chen will use network distance analysis to identify existing drugs that have significant associations with these cancers, prioritize candidates for clinical trials, and ensure these connections hold scientific validity to support drug repurposing.","Dr. Emily Chen, a clinical research scientist with over 15 years of experience in oncology research",Repurpose existing drugs for treating rare cancers,4,"** (NLP Model) to calculate semantic similarity.
+* **The Threshold:** Terms with a **cosine similarity ≥ 0.98** were merged into a single `node_index`.
+
+### B. Multimodality (Features vs. Edges)
+PrimeKG is a **multimodal** graph, meaning it uses two types of data:
+1.  **Structural Edges:** Mathematical links (e.g., `Protein-A interacts-with Protein-B`) used for graph algorithms.
+2.  **Textual Features:** Large blocks of text (descriptions, symptoms, epidemiology) from **Mayo Clinic** and **Orphanet** stored directly inside the disease nodes.
+
+
+
+---
+
+## 5. Clinical Validation
+The utility of PrimeKG was proven through a **Drug Repurposing Case Study**:
+* **The Test:** Researchers checked the ""network distance"" between drugs and diseases they were approved for *after* the graph was built.
+* **The Result:** In **80% of cases**, the drug was significantly closer to the disease in the graph than expected by random chance.
+* **Conclusion:** This proves that PrimeKG can be used to predict which existing drugs might work for new diseases.
+
+---
+
+## 6. The attributes in the CSV files that we used
+#### KG
+- **relation**: The technical name of the link (e.g., indication, off-label use).
+- **display_relation**: The human-readable version (e.g., ""treats"", ""causes side effect"").
+- **x_index / y_index**: The unique numerical IDs for the two entities being linked.
+- **x_id / y_id**: The external database IDs (e.g., a DrugBank ID or a Mondo ID).
+- **x_type / y_type**: What kind of things they are (e.g., drug, disease, phenotype).
+- **x_name / y_name**: The common names (e.g., ""Aspirin"", ""Headache",your_data.txt,[]
+Local Direct,gpt-4o,How can PrimeKG's network distance analysis assist Dr. Emily Chen in prioritizing drug candidates for rare cancer clinical trials?,"PrimeKG's network distance analysis can help Dr. Chen identify drugs that are closely related within the network graph to the molecular targets or genetic markers associated with rare cancers. By finding drugs that show a shorter path or stronger connectivity to these targets, she can prioritize them as potential candidates for clinical trials, increasing the likelihood of success in drug repurposing.","Dr. Emily Chen, a clinical research scientist with over 15 years of experience in oncology research",Repurpose existing drugs for treating rare cancers,4,"** (NLP Model) to calculate semantic similarity.
+* **The Threshold:** Terms with a **cosine similarity ≥ 0.98** were merged into a single `node_index`.
+
+### B. Multimodality (Features vs. Edges)
+PrimeKG is a **multimodal** graph, meaning it uses two types of data:
+1.  **Structural Edges:** Mathematical links (e.g., `Protein-A interacts-with Protein-B`) used for graph algorithms.
+2.  **Textual Features:** Large blocks of text (descriptions, symptoms, epidemiology) from **Mayo Clinic** and **Orphanet** stored directly inside the disease nodes.
+
+
+
+---
+
+## 5. Clinical Validation
+The utility of PrimeKG was proven through a **Drug Repurposing Case Study**:
+* **The Test:** Researchers checked the ""network distance"" between drugs and diseases they were approved for *after* the graph was built.
+* **The Result:** In **80% of cases**, the drug was significantly closer to the disease in the graph than expected by random chance.
+* **Conclusion:** This proves that PrimeKG can be used to predict which existing drugs might work for new diseases.
+
+---
+
+## 6. The attributes in the CSV files that we used
+#### KG
+- **relation**: The technical name of the link (e.g., indication, off-label use).
+- **display_relation**: The human-readable version (e.g., ""treats"", ""causes side effect"").
+- **x_index / y_index**: The unique numerical IDs for the two entities being linked.
+- **x_id / y_id**: The external database IDs (e.g., a DrugBank ID or a Mondo ID).
+- **x_type / y_type**: What kind of things they are (e.g., drug, disease, phenotype).
+- **x_name / y_name**: The common names (e.g., ""Aspirin"", ""Headache",your_data.txt,[]
+One Fact,gpt-4o,What specific technique is Alex Rodriguez interested in integrating with textual features from PrimeKG?,Alex Rodriguez is interested in integrating textual features from PrimeKG into natural language processing (NLP) algorithms.,"Alex Rodriguez, a data scientist focused on healthcare analytics",Develop predictive models for drug efficacy using PrimeKG,4,"** (NLP Model) to calculate semantic similarity.
+* **The Threshold:** Terms with a **cosine similarity ≥ 0.98** were merged into a single `node_index`.
+
+### B. Multimodality (Features vs. Edges)
+PrimeKG is a **multimodal** graph, meaning it uses two types of data:
+1.  **Structural Edges:** Mathematical links (e.g., `Protein-A interacts-with Protein-B`) used for graph algorithms.
+2.  **Textual Features:** Large blocks of text (descriptions, symptoms, epidemiology) from **Mayo Clinic** and **Orphanet** stored directly inside the disease nodes.
+
+
+
+---
+
+## 5. Clinical Validation
+The utility of PrimeKG was proven through a **Drug Repurposing Case Study**:
+* **The Test:** Researchers checked the ""network distance"" between drugs and diseases they were approved for *after* the graph was built.
+* **The Result:** In **80% of cases**, the drug was significantly closer to the disease in the graph than expected by random chance.
+* **Conclusion:** This proves that PrimeKG can be used to predict which existing drugs might work for new diseases.
+
+---
+
+## 6. The attributes in the CSV files that we used
+#### KG
+- **relation**: The technical name of the link (e.g., indication, off-label use).
+- **display_relation**: The human-readable version (e.g., ""treats"", ""causes side effect"").
+- **x_index / y_index**: The unique numerical IDs for the two entities being linked.
+- **x_id / y_id**: The external database IDs (e.g., a DrugBank ID or a Mondo ID).
+- **x_type / y_type**: What kind of things they are (e.g., drug, disease, phenotype).
+- **x_name / y_name**: The common names (e.g., ""Aspirin"", ""Headache",your_data.txt,[]
+Local Direct,gpt-4o,How does Alex Rodriguez plan to utilize visualization tools in his development of models using PrimeKG?,"Alex Rodriguez plans to build visualization tools that help clinicians understand complex relationships in the dataset, making it easier for them to interpret how different drugs relate to various conditions in the predictive model.","Alex Rodriguez, a data scientist focused on healthcare analytics",Develop predictive models for drug efficacy using PrimeKG,4,"** (NLP Model) to calculate semantic similarity.
+* **The Threshold:** Terms with a **cosine similarity ≥ 0.98** were merged into a single `node_index`.
+
+### B. Multimodality (Features vs. Edges)
+PrimeKG is a **multimodal** graph, meaning it uses two types of data:
+1.  **Structural Edges:** Mathematical links (e.g., `Protein-A interacts-with Protein-B`) used for graph algorithms.
+2.  **Textual Features:** Large blocks of text (descriptions, symptoms, epidemiology) from **Mayo Clinic** and **Orphanet** stored directly inside the disease nodes.
+
+
+
+---
+
+## 5. Clinical Validation
+The utility of PrimeKG was proven through a **Drug Repurposing Case Study**:
+* **The Test:** Researchers checked the ""network distance"" between drugs and diseases they were approved for *after* the graph was built.
+* **The Result:** In **80% of cases**, the drug was significantly closer to the disease in the graph than expected by random chance.
+* **Conclusion:** This proves that PrimeKG can be used to predict which existing drugs might work for new diseases.
+
+---
+
+## 6. The attributes in the CSV files that we used
+#### KG
+- **relation**: The technical name of the link (e.g., indication, off-label use).
+- **display_relation**: The human-readable version (e.g., ""treats"", ""causes side effect"").
+- **x_index / y_index**: The unique numerical IDs for the two entities being linked.
+- **x_id / y_id**: The external database IDs (e.g., a DrugBank ID or a Mondo ID).
+- **x_type / y_type**: What kind of things they are (e.g., drug, disease, phenotype).
+- **x_name / y_name**: The common names (e.g., ""Aspirin"", ""Headache",your_data.txt,[]
+Global,gpt-4o,What is the main goal for Sarah Patel in using PrimeKG to inform healthcare policy decisions?,Sarah Patel aims to utilize PrimeKG to assess potential drug repurposing opportunities and analyze data trends to inform policy decisions that support orphan drug development and improve accessibility to treatments for rare diseases.,"Sarah Patel, a healthcare policy analyst specializing in policy development",Analyze PrimeKG for informing policy decisions on drug repurposing,4,"** (NLP Model) to calculate semantic similarity.
+* **The Threshold:** Terms with a **cosine similarity ≥ 0.98** were merged into a single `node_index`.
+
+### B. Multimodality (Features vs. Edges)
+PrimeKG is a **multimodal** graph, meaning it uses two types of data:
+1.  **Structural Edges:** Mathematical links (e.g., `Protein-A interacts-with Protein-B`) used for graph algorithms.
+2.  **Textual Features:** Large blocks of text (descriptions, symptoms, epidemiology) from **Mayo Clinic** and **Orphanet** stored directly inside the disease nodes.
+
+
+
+---
+
+## 5. Clinical Validation
+The utility of PrimeKG was proven through a **Drug Repurposing Case Study**:
+* **The Test:** Researchers checked the ""network distance"" between drugs and diseases they were approved for *after* the graph was built.
+* **The Result:** In **80% of cases**, the drug was significantly closer to the disease in the graph than expected by random chance.
+* **Conclusion:** This proves that PrimeKG can be used to predict which existing drugs might work for new diseases.
+
+---
+
+## 6. The attributes in the CSV files that we used
+#### KG
+- **relation**: The technical name of the link (e.g., indication, off-label use).
+- **display_relation**: The human-readable version (e.g., ""treats"", ""causes side effect"").
+- **x_index / y_index**: The unique numerical IDs for the two entities being linked.
+- **x_id / y_id**: The external database IDs (e.g., a DrugBank ID or a Mondo ID).
+- **x_type / y_type**: What kind of things they are (e.g., drug, disease, phenotype).
+- **x_name / y_name**: The common names (e.g., ""Aspirin"", ""Headache",your_data.txt,[]
+One Fact,gpt-4o,What aspect of public health does Sarah Patel specialize in within her role?,"Sarah Patel specializes in healthcare policy, specifically focusing on policy development for drug approval processes.","Sarah Patel, a healthcare policy analyst specializing in policy development",Analyze PrimeKG for informing policy decisions on drug repurposing,4,"** (NLP Model) to calculate semantic similarity.
+* **The Threshold:** Terms with a **cosine similarity ≥ 0.98** were merged into a single `node_index`.
+
+### B. Multimodality (Features vs. Edges)
+PrimeKG is a **multimodal** graph, meaning it uses two types of data:
+1.  **Structural Edges:** Mathematical links (e.g., `Protein-A interacts-with Protein-B`) used for graph algorithms.
+2.  **Textual Features:** Large blocks of text (descriptions, symptoms, epidemiology) from **Mayo Clinic** and **Orphanet** stored directly inside the disease nodes.
+
+
+
+---
+
+## 5. Clinical Validation
+The utility of PrimeKG was proven through a **Drug Repurposing Case Study**:
+* **The Test:** Researchers checked the ""network distance"" between drugs and diseases they were approved for *after* the graph was built.
+* **The Result:** In **80% of cases**, the drug was significantly closer to the disease in the graph than expected by random chance.
+* **Conclusion:** This proves that PrimeKG can be used to predict which existing drugs might work for new diseases.
+
+---
+
+## 6. The attributes in the CSV files that we used
+#### KG
+- **relation**: The technical name of the link (e.g., indication, off-label use).
+- **display_relation**: The human-readable version (e.g., ""treats"", ""causes side effect"").
+- **x_index / y_index**: The unique numerical IDs for the two entities being linked.
+- **x_id / y_id**: The external database IDs (e.g., a DrugBank ID or a Mondo ID).
+- **x_type / y_type**: What kind of things they are (e.g., drug, disease, phenotype).
+- **x_name / y_name**: The common names (e.g., ""Aspirin"", ""Headache",your_data.txt,[]
+Global,gpt-4o,What are the overall trends in drug-disease interactions that could lead to promising avenues for drug repurposing?,"The main trends in drug-disease interactions indicate a growing understanding of the relationships between pharmacodynamics, disease progression, and patient-specific factors, which could inform targeted drug repurposing opportunities aimed at personalized medicine.","Dr. Sarah Kim, a clinical pharmacologist focusing on drug-disease interactions",Identify promising drug repurposing opportunities for personalized medicine,5,"ondo ID).
+- **x_type / y_type**: What kind of things they are (e.g., drug, disease, phenotype).
+- **x_name / y_name**: The common names (e.g., ""Aspirin"", ""Headache"").
+- **x_source / y_source** : Where this specific link was discovered (e.g., DrugBank, CTD).
+#### Nodes 
+- **node_index** : The primary key used to link to the other files.
+- **node_id**: The official medical code (HPO, MONDO, etc.).
+- **node_type**: The category (Drug, Disease, etc.).
+- **node_name**: The official name of the concept.
+- **node_source**: The vocabulary source (e.g., MSH for MeSH).
+#### drug_features
+- **description**: A general overview of the drug.
+- **half_life** : How long the drug stays in the body (critical for dosage reasoning).
+- **indication** : The specific medical condition the drug is approved to treat.
+- **mechanism_of_action** : (CRITICAL) The biological ""how""—which receptors it hits.
+- **protein_binding** : How the drug hitches a ride in the blood.
+- **pharmacodynamics** : The effect the drug has on the body.
+- **state** : Physical state (Solid, Liquid, etc.).
+- **atc_1 through atc_4** : Anatomical Therapeutic Chemical classification (a hierarchy of what organ system the drug targets).
+- **category / group** : Labels like ""Analgesic"" or ""Approved"".
+- **pathway**: The biological ""road"" the drug travels in the cell.
+- **molecular_weight / tpsa / clogp**: Chemical properties (less relevant for diagnosis, more for drug discovery).
+
+#### disease_features
+- **mondo_id / mondo_name** : Official identifier and name in the Mondo Disease Ont",your_data.txt,[]
+Local Direct,gpt-4o,Which specific drugs have shown potential for repurposing in the treatment of multiple diseases as per recent dataset findings?,"The dataset highlights a few drugs such as Drug A and Drug B, which have been identified to exhibit potential indications in treating both Disease X and Disease Y based on their similar pharmacodynamics and involvement in similar biological pathways.","Dr. Sarah Kim, a clinical pharmacologist focusing on drug-disease interactions",Identify promising drug repurposing opportunities for personalized medicine,5,"ondo ID).
+- **x_type / y_type**: What kind of things they are (e.g., drug, disease, phenotype).
+- **x_name / y_name**: The common names (e.g., ""Aspirin"", ""Headache"").
+- **x_source / y_source** : Where this specific link was discovered (e.g., DrugBank, CTD).
+#### Nodes 
+- **node_index** : The primary key used to link to the other files.
+- **node_id**: The official medical code (HPO, MONDO, etc.).
+- **node_type**: The category (Drug, Disease, etc.).
+- **node_name**: The official name of the concept.
+- **node_source**: The vocabulary source (e.g., MSH for MeSH).
+#### drug_features
+- **description**: A general overview of the drug.
+- **half_life** : How long the drug stays in the body (critical for dosage reasoning).
+- **indication** : The specific medical condition the drug is approved to treat.
+- **mechanism_of_action** : (CRITICAL) The biological ""how""—which receptors it hits.
+- **protein_binding** : How the drug hitches a ride in the blood.
+- **pharmacodynamics** : The effect the drug has on the body.
+- **state** : Physical state (Solid, Liquid, etc.).
+- **atc_1 through atc_4** : Anatomical Therapeutic Chemical classification (a hierarchy of what organ system the drug targets).
+- **category / group** : Labels like ""Analgesic"" or ""Approved"".
+- **pathway**: The biological ""road"" the drug travels in the cell.
+- **molecular_weight / tpsa / clogp**: Chemical properties (less relevant for diagnosis, more for drug discovery).
+
+#### disease_features
+- **mondo_id / mondo_name** : Official identifier and name in the Mondo Disease Ont",your_data.txt,[]
+Global,gpt-4o,What are the core pharmacodynamic properties that influence drug interactions and should be prioritized in clinical trial design?,"The core pharmacodynamic properties essential for drug interactions and clinical trial design include absorption rates, molecular targets, therapeutic indices, and protein-binding affinities, as these directly impact the efficacy and safety of the drugs being tested.","Alex Morgan, a pharmaceutical data analyst focused on drug development strategies",Model pharmacodynamic interactions to inform clinical trial design,5,"ondo ID).
+- **x_type / y_type**: What kind of things they are (e.g., drug, disease, phenotype).
+- **x_name / y_name**: The common names (e.g., ""Aspirin"", ""Headache"").
+- **x_source / y_source** : Where this specific link was discovered (e.g., DrugBank, CTD).
+#### Nodes 
+- **node_index** : The primary key used to link to the other files.
+- **node_id**: The official medical code (HPO, MONDO, etc.).
+- **node_type**: The category (Drug, Disease, etc.).
+- **node_name**: The official name of the concept.
+- **node_source**: The vocabulary source (e.g., MSH for MeSH).
+#### drug_features
+- **description**: A general overview of the drug.
+- **half_life** : How long the drug stays in the body (critical for dosage reasoning).
+- **indication** : The specific medical condition the drug is approved to treat.
+- **mechanism_of_action** : (CRITICAL) The biological ""how""—which receptors it hits.
+- **protein_binding** : How the drug hitches a ride in the blood.
+- **pharmacodynamics** : The effect the drug has on the body.
+- **state** : Physical state (Solid, Liquid, etc.).
+- **atc_1 through atc_4** : Anatomical Therapeutic Chemical classification (a hierarchy of what organ system the drug targets).
+- **category / group** : Labels like ""Analgesic"" or ""Approved"".
+- **pathway**: The biological ""road"" the drug travels in the cell.
+- **molecular_weight / tpsa / clogp**: Chemical properties (less relevant for diagnosis, more for drug discovery).
+
+#### disease_features
+- **mondo_id / mondo_name** : Official identifier and name in the Mondo Disease Ont",your_data.txt,[]
+Local Direct,gpt-4o,How do the pharmacodynamic characteristics of Drug C impact its interaction with the protein binding sites of Disease Z?,"Drug C displays pharmacodynamic properties such as a high binding affinity to Protein Marker 1, which is upregulated in Disease Z, indicating a potential therapeutic mechanism that could be exploited in clinical trials.","Alex Morgan, a pharmaceutical data analyst focused on drug development strategies",Model pharmacodynamic interactions to inform clinical trial design,5,"ondo ID).
+- **x_type / y_type**: What kind of things they are (e.g., drug, disease, phenotype).
+- **x_name / y_name**: The common names (e.g., ""Aspirin"", ""Headache"").
+- **x_source / y_source** : Where this specific link was discovered (e.g., DrugBank, CTD).
+#### Nodes 
+- **node_index** : The primary key used to link to the other files.
+- **node_id**: The official medical code (HPO, MONDO, etc.).
+- **node_type**: The category (Drug, Disease, etc.).
+- **node_name**: The official name of the concept.
+- **node_source**: The vocabulary source (e.g., MSH for MeSH).
+#### drug_features
+- **description**: A general overview of the drug.
+- **half_life** : How long the drug stays in the body (critical for dosage reasoning).
+- **indication** : The specific medical condition the drug is approved to treat.
+- **mechanism_of_action** : (CRITICAL) The biological ""how""—which receptors it hits.
+- **protein_binding** : How the drug hitches a ride in the blood.
+- **pharmacodynamics** : The effect the drug has on the body.
+- **state** : Physical state (Solid, Liquid, etc.).
+- **atc_1 through atc_4** : Anatomical Therapeutic Chemical classification (a hierarchy of what organ system the drug targets).
+- **category / group** : Labels like ""Analgesic"" or ""Approved"".
+- **pathway**: The biological ""road"" the drug travels in the cell.
+- **molecular_weight / tpsa / clogp**: Chemical properties (less relevant for diagnosis, more for drug discovery).
+
+#### disease_features
+- **mondo_id / mondo_name** : Official identifier and name in the Mondo Disease Ont",your_data.txt,[]
+Global,gpt-4o,What are the primary obstacles when integrating multiple data sources for clinical research purposes?,"The primary obstacles in integrating multiple data sources for clinical research include managing the complexity of data integration, understanding and adapting to the constantly evolving landscape of disease ontology, and balancing the rigorous timelines of research with the need for thorough data analysis.","Dr. Sarah Thompson, a Clinical Researcher",Integrate data sources to inform drug target identification and clinical trial design,6," **molecular_weight / tpsa / clogp**: Chemical properties (less relevant for diagnosis, more for drug discovery).
+
+#### disease_features
+- **mondo_id / mondo_name** : Official identifier and name in the Mondo Disease Ontology.
+
+- **group_id_bert / group_name_bert**: AI-clustered disease groups (useful for machine learning tasks).
+
+- **mondo_definition**: (CRITICAL) The textbook definition of the disease.
+
+- **umls_description**: A secondary description from the Unified Medical Language System.
+
+- **orphanet_definition / epidemiology / clinical_description**: Deep data for rare diseases (Orphanet focus).
+
+- **orphanet_prevalence**: How common the disease is (essential for calculating probability).
+
+- **mayo_symptoms**: (CRITICAL for DDXPlus) A list of symptoms used to diagnose the disease.
+
+- **mayo_causes**: What triggers the disease (environmental, genetic, etc.).
+
+- **mayo_risk_factors / complications**: What makes the disease worse and what it can lead to.
+
+- **mayo_prevention**: How to avoid it.
+
+- **mayo_see_doc**: ""Red flag"" signs that mean the patient needs an emergency room.
+
+
+",your_data.txt,[]
+Local Direct,gpt-4o,How can Dr. Sarah utilize disease epidemiology and prevalence data in her research?,"Dr. Sarah can utilize disease epidemiology and prevalence data to prioritize clinical trial designs, ensuring they align with the most pressing research hypotheses and focus on identifying potential drug targets, particularly for rare diseases.","Dr. Sarah Thompson, a Clinical Researcher",Integrate data sources to inform drug target identification and clinical trial design,6," **molecular_weight / tpsa / clogp**: Chemical properties (less relevant for diagnosis, more for drug discovery).
+
+#### disease_features
+- **mondo_id / mondo_name** : Official identifier and name in the Mondo Disease Ontology.
+
+- **group_id_bert / group_name_bert**: AI-clustered disease groups (useful for machine learning tasks).
+
+- **mondo_definition**: (CRITICAL) The textbook definition of the disease.
+
+- **umls_description**: A secondary description from the Unified Medical Language System.
+
+- **orphanet_definition / epidemiology / clinical_description**: Deep data for rare diseases (Orphanet focus).
+
+- **orphanet_prevalence**: How common the disease is (essential for calculating probability).
+
+- **mayo_symptoms**: (CRITICAL for DDXPlus) A list of symptoms used to diagnose the disease.
+
+- **mayo_causes**: What triggers the disease (environmental, genetic, etc.).
+
+- **mayo_risk_factors / complications**: What makes the disease worse and what it can lead to.
+
+- **mayo_prevention**: How to avoid it.
+
+- **mayo_see_doc**: ""Red flag"" signs that mean the patient needs an emergency room.
+
+
+",your_data.txt,[]
+Global,gpt-4o,What challenges does Lisa face in applying theoretical knowledge to practical scenarios?,"Lisa faces the challenges of navigating complex medical jargon and dense data sources without sufficient guidance, compounded by time constraints due to her packed academic schedule. These challenges make it difficult to apply her theoretical knowledge to real-world clinical scenarios.","Lisa Moreno, a Medical Student",Leverage resources to improve understanding of rare diseases and clinical skills,6," **molecular_weight / tpsa / clogp**: Chemical properties (less relevant for diagnosis, more for drug discovery).
+
+#### disease_features
+- **mondo_id / mondo_name** : Official identifier and name in the Mondo Disease Ontology.
+
+- **group_id_bert / group_name_bert**: AI-clustered disease groups (useful for machine learning tasks).
+
+- **mondo_definition**: (CRITICAL) The textbook definition of the disease.
+
+- **umls_description**: A secondary description from the Unified Medical Language System.
+
+- **orphanet_definition / epidemiology / clinical_description**: Deep data for rare diseases (Orphanet focus).
+
+- **orphanet_prevalence**: How common the disease is (essential for calculating probability).
+
+- **mayo_symptoms**: (CRITICAL for DDXPlus) A list of symptoms used to diagnose the disease.
+
+- **mayo_causes**: What triggers the disease (environmental, genetic, etc.).
+
+- **mayo_risk_factors / complications**: What makes the disease worse and what it can lead to.
+
+- **mayo_prevention**: How to avoid it.
+
+- **mayo_see_doc**: ""Red flag"" signs that mean the patient needs an emergency room.
+
+
+",your_data.txt,[]
+One Fact,gpt-4o,What educational degree does Lisa Moreno hold?,Lisa Moreno holds a Bachelor's degree in Biomedical Sciences.,"Lisa Moreno, a Medical Student",Leverage resources to improve understanding of rare diseases and clinical skills,6," **molecular_weight / tpsa / clogp**: Chemical properties (less relevant for diagnosis, more for drug discovery).
+
+#### disease_features
+- **mondo_id / mondo_name** : Official identifier and name in the Mondo Disease Ontology.
+
+- **group_id_bert / group_name_bert**: AI-clustered disease groups (useful for machine learning tasks).
+
+- **mondo_definition**: (CRITICAL) The textbook definition of the disease.
+
+- **umls_description**: A secondary description from the Unified Medical Language System.
+
+- **orphanet_definition / epidemiology / clinical_description**: Deep data for rare diseases (Orphanet focus).
+
+- **orphanet_prevalence**: How common the disease is (essential for calculating probability).
+
+- **mayo_symptoms**: (CRITICAL for DDXPlus) A list of symptoms used to diagnose the disease.
+
+- **mayo_causes**: What triggers the disease (environmental, genetic, etc.).
+
+- **mayo_risk_factors / complications**: What makes the disease worse and what it can lead to.
+
+- **mayo_prevention**: How to avoid it.
+
+- **mayo_see_doc**: ""Red flag"" signs that mean the patient needs an emergency room.
+
+
+",your_data.txt,[]
+Local Direct,gpt-4o,Which data aspects are crucial for Mark's model validation and refinement?,"Detailed disease feature datasets and symptom and risk data are crucial for Mark's model refinement and validation, allowing him to improve prediction accuracy and verify the models against real-world conditions.","Mark Davis, a Health Data Scientist",Create predictive models to advance healthcare analytics,6," **molecular_weight / tpsa / clogp**: Chemical properties (less relevant for diagnosis, more for drug discovery).
+
+#### disease_features
+- **mondo_id / mondo_name** : Official identifier and name in the Mondo Disease Ontology.
+
+- **group_id_bert / group_name_bert**: AI-clustered disease groups (useful for machine learning tasks).
+
+- **mondo_definition**: (CRITICAL) The textbook definition of the disease.
+
+- **umls_description**: A secondary description from the Unified Medical Language System.
+
+- **orphanet_definition / epidemiology / clinical_description**: Deep data for rare diseases (Orphanet focus).
+
+- **orphanet_prevalence**: How common the disease is (essential for calculating probability).
+
+- **mayo_symptoms**: (CRITICAL for DDXPlus) A list of symptoms used to diagnose the disease.
+
+- **mayo_causes**: What triggers the disease (environmental, genetic, etc.).
+
+- **mayo_risk_factors / complications**: What makes the disease worse and what it can lead to.
+
+- **mayo_prevention**: How to avoid it.
+
+- **mayo_see_doc**: ""Red flag"" signs that mean the patient needs an emergency room.
+
+
+",your_data.txt,[]
+One Fact,gpt-4o,What is Mark's educational background?,Mark's educational background is a Master's in Computer Science with a focus on Machine Learning.,"Mark Davis, a Health Data Scientist",Create predictive models to advance healthcare analytics,6," **molecular_weight / tpsa / clogp**: Chemical properties (less relevant for diagnosis, more for drug discovery).
+
+#### disease_features
+- **mondo_id / mondo_name** : Official identifier and name in the Mondo Disease Ontology.
+
+- **group_id_bert / group_name_bert**: AI-clustered disease groups (useful for machine learning tasks).
+
+- **mondo_definition**: (CRITICAL) The textbook definition of the disease.
+
+- **umls_description**: A secondary description from the Unified Medical Language System.
+
+- **orphanet_definition / epidemiology / clinical_description**: Deep data for rare diseases (Orphanet focus).
+
+- **orphanet_prevalence**: How common the disease is (essential for calculating probability).
+
+- **mayo_symptoms**: (CRITICAL for DDXPlus) A list of symptoms used to diagnose the disease.
+
+- **mayo_causes**: What triggers the disease (environmental, genetic, etc.).
+
+- **mayo_risk_factors / complications**: What makes the disease worse and what it can lead to.
+
+- **mayo_prevention**: How to avoid it.
+
+- **mayo_see_doc**: ""Red flag"" signs that mean the patient needs an emergency room.
+
+
+",your_data.txt,[]
