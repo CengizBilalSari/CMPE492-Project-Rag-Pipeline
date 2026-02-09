@@ -1,7 +1,7 @@
 # Virtual Environment
 venv/
 venv_linux/
-
+venv_graphrag/
 # Python Caches
 __pycache__/
 *.py[cod]
