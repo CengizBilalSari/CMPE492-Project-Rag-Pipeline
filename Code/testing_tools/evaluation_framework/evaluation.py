@@ -15,8 +15,8 @@ def main() -> None:
         chunk_size=400,
         chunk_overlap=50,
         splitter_type="token",
-        llm_provider="groq", # groq |openai
-        llm_model="llama-3.3-70b-versatile",# groq: llama-3.3-70b-versatile | openai: gpt-4o
+        llm_provider="openai", # groq |openai
+        llm_model="gpt-4o",# groq: llama-3.3-70b-versatile | openai: gpt-4o
         personas_k=3,
         tasks_n=2,
         qas_m=2,
