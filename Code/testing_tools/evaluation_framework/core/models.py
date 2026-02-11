@@ -30,3 +30,16 @@ class PipelineConfig:
     rag_http_method: str = "post"  # post | get
     rag_top_k: int = 5
     output_csv_path: str = "qa_library.csv"
+
+
+@dataclass
+class EvalConfig:
+    comet_workspace: str = "cmpe492-team"
+    comet_project: str = "cmpe492-rag-pipeline-evaluation-tool"
+    comet_experiment_key: Optional[str] = None          # key of the QA-generation experiment
+    rag_endpoint_url: Optional[str] = None              # None = mock mode (LLM answers)
+    rag_http_method: str = "post"
+    rag_top_k: int = 5
+    llm_provider: str = "openai"                        # openai | groq
+    llm_model: str = "gpt-4o"
+    output_csv_path: str = "evaluation_results.csv"
