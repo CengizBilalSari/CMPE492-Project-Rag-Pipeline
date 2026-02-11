@@ -23,7 +23,6 @@ class RAGClient:
         resp.raise_for_status()
         data = resp.json()
 
-        # Extract contexts
         contexts: List[str] = []
         if isinstance(data, dict):
             if "contexts" in data:
