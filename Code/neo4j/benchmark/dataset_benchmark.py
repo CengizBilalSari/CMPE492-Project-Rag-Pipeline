@@ -2,13 +2,16 @@
 MedQA Benchmark Service
 
 Evaluates GPT model performance on medical question answering using the MedQA dataset.
-Uses Comet Opik for LLM request tracing and experiment tracking.
+Uses Comet Opik for LLM request tracing and Comet ML for experiment tracking.
 """
 
 import os
+import csv
+import time
+import json
 import argparse
-from typing import Optional
-from dataclasses import dataclass
+from typing import Optional, Dict, List
+from dataclasses import dataclass, asdict, field
 from dotenv import load_dotenv
 from pathlib import Path
 
@@ -20,6 +23,7 @@ from datasets import load_dataset
 from openai import OpenAI
 from opik import track
 from opik.integrations.openai import track_openai
+from comet_ml import Experiment
 from tqdm import tqdm
 
 
@@ -32,6 +36,10 @@ class BenchmarkResult:
     correct_answer: str
     model_answer: str
     is_correct: bool
+    latency_ms: float = 0.0
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
 
 
 @dataclass
@@ -40,7 +48,11 @@ class BenchmarkSummary:
     total_questions: int
     correct_answers: int
     accuracy: float
-    results: list[BenchmarkResult]
+    avg_latency_ms: float = 0.0
+    total_prompt_tokens: int = 0
+    total_completion_tokens: int = 0
+    total_tokens: int = 0
+    results: list = field(default_factory=list)
 
 
 class MedQABenchmark:
@@ -55,6 +67,7 @@ class MedQABenchmark:
             project_name: Comet Opik project name for tracking
         """
         self.model = model
+        self.project_name = project_name
         os.environ["OPIK_PROJECT_NAME"] = project_name
         
         # Initialize OpenAI client with Opik tracking
@@ -149,17 +162,22 @@ D) {options['D']}
         """
         prompt = self.format_question(sample)
         
+        start = time.perf_counter()
         completion = self.client.chat.completions.create(
             model=self.model,
             messages=[{"role": "user", "content": prompt}],
             temperature=0,
             max_tokens=10
         )
+        latency_ms = (time.perf_counter() - start) * 1000
         
         model_response = completion.choices[0].message.content
         model_answer = self.parse_answer(model_response)
         data = sample["data"]
         correct_answer = data["Correct Option"]
+
+        prompt_tokens = getattr(completion.usage, "prompt_tokens", 0)
+        completion_tokens = getattr(completion.usage, "completion_tokens", 0)
         
         return BenchmarkResult(
             question_id=sample["id"],
@@ -167,7 +185,11 @@ D) {options['D']}
             options=data["Options"],
             correct_answer=correct_answer,
             model_answer=model_answer,
-            is_correct=model_answer == correct_answer
+            is_correct=model_answer == correct_answer,
+            latency_ms=latency_ms,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=prompt_tokens + completion_tokens,
         )
     
     @track
@@ -186,7 +208,7 @@ D) {options['D']}
         samples = self.load_dataset(split=split, sample_size=sample_size)
         print(f"Loaded {len(samples)} samples")
         
-        results = []
+        results: List[BenchmarkResult] = []
         correct_count = 0
         
         print("Running benchmark...")
@@ -196,25 +218,105 @@ D) {options['D']}
             if result.is_correct:
                 correct_count += 1
         
+        n = len(samples) or 1
         accuracy = (correct_count / len(samples)) * 100 if samples else 0
         
         summary = BenchmarkSummary(
             total_questions=len(samples),
             correct_answers=correct_count,
             accuracy=accuracy,
-            results=results
+            avg_latency_ms=sum(r.latency_ms for r in results) / n,
+            total_prompt_tokens=sum(r.prompt_tokens for r in results),
+            total_completion_tokens=sum(r.completion_tokens for r in results),
+            total_tokens=sum(r.total_tokens for r in results),
+            results=results,
         )
         
+        self._print_results(summary)
+        
+        return summary
+    
+    def _print_results(self, summary: BenchmarkSummary) -> None:
+        """Print benchmark results to console."""
         print(f"\n{'='*50}")
         print(f"BENCHMARK RESULTS")
         print(f"{'='*50}")
-        print(f"Model: {self.model}")
-        print(f"Total Questions: {summary.total_questions}")
-        print(f"Correct Answers: {summary.correct_answers}")
-        print(f"Accuracy: {summary.accuracy:.2f}%")
+        print(f"Model:                {self.model}")
+        print(f"Total Questions:      {summary.total_questions}")
+        print(f"Correct Answers:      {summary.correct_answers}")
+        print(f"Accuracy:             {summary.accuracy:.2f}%")
+        print(f"Avg Latency:          {summary.avg_latency_ms:.1f} ms")
+        print(f"Total Prompt Tokens:  {summary.total_prompt_tokens}")
+        print(f"Total Compl. Tokens:  {summary.total_completion_tokens}")
+        print(f"Total Tokens:         {summary.total_tokens}")
         print(f"{'='*50}")
-        
-        return summary
+
+    def write_csv(self, results: List[BenchmarkResult], path: str) -> None:
+        """Export per-question results to CSV."""
+        fieldnames = [
+            "question_id", "question", "correct_answer", "model_answer",
+            "is_correct", "latency_ms", "prompt_tokens",
+            "completion_tokens", "total_tokens",
+        ]
+        with open(path, "w", encoding="utf-8", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            for r in results:
+                d = asdict(r)
+                d.pop("options", None)
+                writer.writerow(d)
+        print(f"Results saved to {path}")
+
+    def log_to_comet(
+        self,
+        summary: BenchmarkSummary,
+        split: str,
+        sample_size: Optional[int],
+        csv_path: str,
+    ) -> None:
+        """Log params, metrics, and results table to Comet ML."""
+        comet_key = os.getenv("COMET_API_KEY")
+        if not comet_key:
+            print("COMET_API_KEY not set — skipping Comet ML logging.")
+            return
+
+        workspace = os.getenv("COMET_WORKSPACE", "cmpe492-team")
+        project = os.getenv("COMET_PROJECT", self.project_name)
+
+        experiment = Experiment(
+            api_key=comet_key,
+            workspace=workspace,
+            project_name=project,
+        )
+
+        # Log parameters
+        experiment.log_parameters({
+            "model": self.model,
+            "split": split,
+            "sample_size": sample_size or "all",
+            "dataset": "openlifescienceai/medqa",
+        })
+
+        # Log aggregate metrics
+        experiment.log_metrics({
+            "accuracy": summary.accuracy,
+            "avg_latency_ms": summary.avg_latency_ms,
+            "total_prompt_tokens": summary.total_prompt_tokens,
+            "total_completion_tokens": summary.total_completion_tokens,
+            "total_tokens": summary.total_tokens,
+            "num_questions": summary.total_questions,
+            "correct_answers": summary.correct_answers,
+        })
+
+        # Log results table
+        with open(csv_path, "r", encoding="utf-8", newline="") as f:
+            reader = csv.reader(f)
+            headers = next(reader, [])
+            rows = list(reader)
+        experiment.log_table("benchmark_results.csv", rows, headers=headers)
+
+        experiment.end()
+        print(f"Logged to Comet ML — workspace: {workspace}, project: {project}")
 
 
 def main():
@@ -244,11 +346,23 @@ def main():
         default="medqa-benchmark",
         help="Comet Opik project name (default: medqa-benchmark)"
     )
+    parser.add_argument(
+        "--output-csv",
+        type=str,
+        default="benchmark_results.csv",
+        help="Output CSV path (default: benchmark_results.csv)"
+    )
     
     args = parser.parse_args()
     
     benchmark = MedQABenchmark(model=args.model, project_name=args.project_name)
     summary = benchmark.run_benchmark(sample_size=args.sample_size, split=args.split)
+
+    # Export CSV
+    benchmark.write_csv(summary.results, args.output_csv)
+
+    # Log to Comet ML
+    benchmark.log_to_comet(summary, args.split, args.sample_size, args.output_csv)
     
     return summary
 
