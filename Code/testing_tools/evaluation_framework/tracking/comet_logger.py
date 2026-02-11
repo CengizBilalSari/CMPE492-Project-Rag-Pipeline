@@ -50,7 +50,6 @@ class CometLogger:
                 f"Asset '{asset_name}' not found in experiment {experiment_key}"
             )
         raw = experiment.get_asset(target["assetId"])
-        print(raw)
         text = raw if isinstance(raw, str) else raw.decode("utf-8")
         reader = csv.DictReader(io.StringIO(text))
         return list(reader)
