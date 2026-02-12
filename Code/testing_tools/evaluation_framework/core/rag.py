@@ -1,4 +1,4 @@
-from typing import List
+from typing import Dict, List
 
 try:
     import requests
@@ -14,7 +14,7 @@ class RAGClient:
         self.http_method = http_method.lower()
         self.top_k = top_k
 
-    def retrieve(self, query: str) -> List[str]:
+    def retrieve(self, query: str) -> Dict:
         payload = {"query": query, "top_k": self.top_k}
         if self.http_method == "get":
             resp = requests.get(self.endpoint_url, params=payload, timeout=30)
@@ -22,13 +22,32 @@ class RAGClient:
             resp = requests.post(self.endpoint_url, json=payload, timeout=30)
         resp.raise_for_status()
         data = resp.json()
+
+        contexts: List[str] = []
         if isinstance(data, dict):
             if "contexts" in data:
-                return data["contexts"]
-            if "documents" in data:
-                return data["documents"]
-            if "results" in data:
-                return data["results"]
-        if isinstance(data, list):
-            return data
-        return []
+                contexts = data["contexts"]
+            elif "documents" in data:
+                contexts = data["documents"]
+            elif "results" in data:
+                contexts = data["results"]
+        elif isinstance(data, list):
+            contexts = data
+
+        answer = ""
+        if isinstance(data, dict) and "answer" in data:
+            answer = data["answer"]
+        elif contexts:
+            answer = contexts[0]
+
+        token_usage = {}
+        if isinstance(data, dict) and "token_usage" in data:
+            token_usage = data["token_usage"]
+
+        return {
+            "answer": answer,
+            "retrieved_contexts": contexts,
+            "prompt_tokens": token_usage.get("prompt_tokens", 0),
+            "completion_tokens": token_usage.get("completion_tokens", 0),
+            "total_tokens": token_usage.get("total_tokens", 0),
+        }

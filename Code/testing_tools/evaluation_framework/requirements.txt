@@ -5,3 +5,5 @@ requests==2.32.5
 pymupdf==1.26.7
 python-docx==1.2.0
 comet-ml==3.55.0
+groq==0.30.0
+langchain-text-splitters>=0.3.0

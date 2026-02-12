@@ -15,7 +15,7 @@ class EvaluationPipeline:
         self.splitter = build_splitter(
             config.splitter_type, config.chunk_size, config.chunk_overlap
         )
-        self.generator = QuestionLibraryGenerator(config.llm_model)
+        self.generator = QuestionLibraryGenerator(config.llm_provider, config.llm_model)
         self.rag_client = (
             RAGClient(config.rag_endpoint_url, config.rag_http_method, config.rag_top_k)
             if config.rag_endpoint_url

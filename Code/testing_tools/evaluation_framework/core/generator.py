@@ -4,17 +4,33 @@ from typing import List
 
 from dotenv import load_dotenv
 from openai import OpenAI
+try:
+    from groq import Groq
+except Exception:  
+    Groq = None
 from .models import QAEntry
 
 load_dotenv()
 
 
 class QuestionLibraryGenerator:
-    def __init__(self, model: str):
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            raise ValueError("Missing OPENAI_API_KEY in .env file")
-        self.client = OpenAI(api_key=api_key)
+    def __init__(self, provider: str, model: str):
+        provider = provider.lower()
+        if provider == "openai":
+            api_key = os.getenv("OPENAI_API_KEY")
+            if not api_key:
+                raise ValueError("Missing OPENAI_API_KEY in .env file")
+            self.client = OpenAI(api_key=api_key)
+        elif provider == "groq":
+            if Groq is None:
+                raise ImportError("groq is not installed. Install with `pip install groq`.")
+            api_key = os.getenv("GROQ_API_KEY")
+            if not api_key:
+                raise ValueError("Missing GROQ_API_KEY in .env file")
+            self.client = Groq(api_key=api_key)
+        else:
+            raise ValueError(f"Unsupported llm_provider: {provider}")
+        self.provider = provider
         self.model = model
 
     def generate_suite(self, corpus_desc: str, K: int, N: int, M: int) -> List[QAEntry]:
@@ -27,16 +43,29 @@ class QuestionLibraryGenerator:
         ).choices[0].message.content
 
         qa_prompt = f"""
-Act as an expert evaluation engineer. Based on these user personas:
+Act as an expert evaluation engineer.
+
+=== CORPUS CONTENT ===
+{corpus_desc}
+=== END CORPUS ===
+
+=== USER PERSONAS ===
 {personas}
+=== END PERSONAS ===
 
-Generate {N} high-level tasks. For each task, generate {M} Q&A pairs. 
+Generate {N} high-level tasks. For each task, generate {M} Q&A pairs.
+
+CRITICAL RULES:
+1. Every question MUST be answerable ONLY from the CORPUS CONTENT above.
+2. Every answer MUST be derived strictly from information found in the CORPUS CONTENT.
+3. The persona determines the STYLE and PERSPECTIVE of the question (e.g., technical vs. simple language), but the TOPIC must come from the corpus.
+4. Do NOT invent facts about the persona (e.g., their skills, background, research goals). The persona is just a lens through which to phrase the question.
+5. Do NOT ask questions about the persona themselves.
+
 You must strictly vary the 'question_type' based on these definitions:
-- 'Global': High-level synthesis or "what is the main theme" questions.
-- 'Local Direct': Requires connecting 2-3 specific entities or sections.
-- 'One Fact': A pinpoint lookup of a single, specific detail.
-
-Constraint: Ensure the 'answer' is comprehensive and derived strictly from the implied context of the corpus.
+- 'Global': High-level synthesis or "what is the main theme" questions about the corpus.
+- 'Local Direct': Requires connecting 2-3 specific entities or sections from the corpus.
+- 'One Fact': A pinpoint lookup of a single, specific detail from the corpus.
 
 Output MUST be a valid JSON object following this structure:
 {{
@@ -45,8 +74,8 @@ Output MUST be a valid JSON object following this structure:
       "persona": "The persona name and a bit detail of it (e.g., 'Alice, a data scientist with 5 years of experience')",
       "task": "The overarching objective",
       "question_type": "Global | Local Direct | One Fact",
-      "question": "The specific inquiry",
-      "answer": "The detailed ground-truth answer"
+      "question": "The specific inquiry (must be answerable from the corpus)",
+      "answer": "The detailed ground-truth answer (must come from the corpus)"
     }}
   ]
 }}
