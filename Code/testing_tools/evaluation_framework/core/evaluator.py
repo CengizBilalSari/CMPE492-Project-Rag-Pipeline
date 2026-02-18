@@ -253,8 +253,8 @@ class RAGEvaluator:
                 total_tokens=result.get("prompt_tokens", 0) + result.get("completion_tokens", 0),
                 question_type=row.get("question_type", ""),
                 source=row.get("source", ""),
-                persona=row.get("persona"),
-                task=row.get("task"),
+                persona=row.get("persona", ""),
+                task=row.get("task", ""),
                 chunk_id=int(row["chunk_id"]) if row.get("chunk_id") else None,
             )
             eval_rows.append(er)
