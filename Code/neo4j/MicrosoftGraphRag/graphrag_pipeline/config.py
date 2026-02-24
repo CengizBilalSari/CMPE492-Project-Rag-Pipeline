@@ -66,6 +66,12 @@ class CommunityDetectionConfig(BaseModel):
     resolution: float = 1.0
 
 
+class GlobalSearchConfig(BaseModel):
+    max_token_per_batch: int = 2000
+    max_concurrency: int = 5
+    top_k: int = 10
+
+
 class PipelineConfig(BaseModel):
     """Top-level pipeline configuration."""
 
@@ -76,6 +82,7 @@ class PipelineConfig(BaseModel):
     extraction: ExtractionConfig = ExtractionConfig()
     entity_resolution: EntityResolutionConfig = EntityResolutionConfig()
     community_detection: CommunityDetectionConfig = CommunityDetectionConfig()
+    global_search: GlobalSearchConfig = GlobalSearchConfig()
 
 
 # ---------------------------------------------------------------------------
