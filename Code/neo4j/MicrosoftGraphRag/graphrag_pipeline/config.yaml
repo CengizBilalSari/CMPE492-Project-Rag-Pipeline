@@ -6,8 +6,8 @@ chunking:
   chunk_overlap: 200
 
 llm:
-  provider: "openai"       # Options: groq, openai
-  model: "gpt-4o-mini"
+  provider: "vertex"       # Options: groq, openai, vertex
+  model: "gemini-2.5-flash"
   temperature: 0.0
   max_tokens: 4096
 

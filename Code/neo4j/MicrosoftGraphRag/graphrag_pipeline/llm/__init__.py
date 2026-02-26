@@ -5,6 +5,7 @@ Unified LLM interface with factory function.
 from .base import LLMInterface
 from .openai_llm import OpenAILLM
 from .groq_llm import GroqLLM
+from .vertex_llm import VertexLLM
 
 
 def get_llm(provider: str, **kwargs) -> LLMInterface:
@@ -23,6 +24,7 @@ def get_llm(provider: str, **kwargs) -> LLMInterface:
     providers = {
         "openai": OpenAILLM,
         "groq": GroqLLM,
+        "vertex": VertexLLM,
     }
     cls = providers.get(provider.lower())
     if cls is None:
@@ -30,4 +32,4 @@ def get_llm(provider: str, **kwargs) -> LLMInterface:
     return cls(**kwargs)
 
 
-__all__ = ["LLMInterface", "OpenAILLM", "GroqLLM", "get_llm"]
+__all__ = ["LLMInterface", "OpenAILLM", "GroqLLM", "VertexLLM", "get_llm"]

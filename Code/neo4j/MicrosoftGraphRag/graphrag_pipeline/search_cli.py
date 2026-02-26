@@ -10,9 +10,9 @@ from typing import Optional
 
 import neo4j
 
-from .config import load_config
-from .llm import get_llm
-from .retrievers import GlobalRetriever
+from graphrag_pipeline.config import load_config
+from graphrag_pipeline.llm import get_llm
+from graphrag_pipeline.retrievers import GlobalRetriever
 
 logging.basicConfig(
     level=logging.INFO,
