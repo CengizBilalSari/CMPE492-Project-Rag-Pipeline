@@ -23,13 +23,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-async def _hf_embed(texts: list[str], model: str = "all-MiniLM-L6-v2") -> list[list[float]]:
-    from sentence_transformers import SentenceTransformer
-    st_model = SentenceTransformer(model)
-    embeddings = st_model.encode(texts, show_progress_bar=True)
-    return embeddings.tolist()
-
-
+from .utils import hf_embed
 class GraphRAGPipeline:
     def __init__(self, config: PipelineConfig) -> None:
         self.config = config
@@ -100,7 +94,7 @@ class GraphRAGPipeline:
             embedding_model = self.config.embedding.model
 
             async def embed_fn(texts: list[str]) -> list[list[float]]:
-                return await _hf_embed(texts, model=embedding_model)
+                return await hf_embed(texts, model_name=embedding_model, show_progress=True)
 
             resolver = EntityResolver(
                 driver=self._driver,
