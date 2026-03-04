@@ -1,7 +1,3 @@
-"""
-Parallel Entity-Relationship extraction using an LLM.
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -14,9 +10,6 @@ from ..llm.base import LLMInterface
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Data structures
-# ---------------------------------------------------------------------------
 
 @dataclass
 class Entity:
@@ -44,11 +37,6 @@ class ExtractionResult:
     entities: list[Entity]
     relations: list[Relation]
 
-
-# ---------------------------------------------------------------------------
-# Prompt
-# ---------------------------------------------------------------------------
-
 ER_SYSTEM_PROMPT = """You are a knowledge-graph extraction expert.
 
 Given a text chunk, extract all entities and their relationships.
@@ -73,10 +61,6 @@ Rules:
 
 # TODO(the entity types should be more specific, this prompt could create problem for medicine domain)
 
-# ---------------------------------------------------------------------------
-# Extractor
-# ---------------------------------------------------------------------------
-
 class EntityRelationshipExtractor:
     """Extracts entities and relations from text chunks using an LLM.
 
@@ -95,14 +79,6 @@ class EntityRelationshipExtractor:
         self,
         chunks: list[str],
     ) -> list[ExtractionResult]:
-        """Extract entities and relations from all *chunks* in parallel.
-
-        Args:
-            chunks: List of text chunks.
-
-        Returns:
-            A list of ``ExtractionResult`` objects, one per chunk.
-        """
         sem = asyncio.Semaphore(self.max_concurrency)
         tasks = [
             self._extract_single(sem, idx, chunk)
@@ -129,8 +105,7 @@ class EntityRelationshipExtractor:
     ) -> ExtractionResult:
         async with sem:
             logger.info("Extracting entities from chunk %d (%d chars)", index, len(chunk))
-            response = await self.llm.ainvoke(prompt=chunk, system_prompt=ER_SYSTEM_PROMPT)
-            await asyncio.sleep(1.5)
+            response = await self._invoke_with_backoff(chunk)
             parsed = self._parse_response(response)
             return ExtractionResult(
                 chunk_index=index,
@@ -139,35 +114,58 @@ class EntityRelationshipExtractor:
                 relations=parsed["relations"],
             )
 
+    async def _invoke_with_backoff(self, chunk: str, max_retries: int = 5) -> str:
+        """Call the LLM with exponential backoff on 429 / rate-limit errors."""
+        wait = 2.0
+        for attempt in range(max_retries):
+            try:
+                return await self.llm.ainvoke(prompt=chunk, system_prompt=ER_SYSTEM_PROMPT)
+            except Exception as exc:
+                err = str(exc).lower()
+                is_rate_limit = "429" in err or "quota" in err or "rate" in err or "resource exhausted" in err
+                if is_rate_limit and attempt < max_retries - 1:
+                    logger.warning(
+                        "Rate limit hit on chunk (attempt %d/%d) — retrying in %.1fs...",
+                        attempt + 1, max_retries, wait,
+                    )
+                    await asyncio.sleep(wait)
+                    wait = min(wait * 2, 60.0)  # cap at 60s
+                else:
+                    raise
+        raise RuntimeError("Max retries exceeded for chunk extraction")
+
+
     @staticmethod
     def _parse_response(response: str) -> dict[str, list]:
         """Parse the JSON response from the LLM, with fallback on error."""
         try:
             clean = response.strip()
-            # Strip markdown code fences if present
             if clean.startswith("```"):
                 clean = clean.split("\n", 1)[1].rsplit("```", 1)[0]
             data = json.loads(clean)
 
             entities = [
                 Entity(
-                    name=e.get("name", ""),
-                    type=e.get("type", "Unknown"),
-                    description=e.get("description", ""),
-                    properties=e.get("properties", {}),
+                    name=e.get("name") or "",
+                    type=e.get("type") or "Unknown",
+                    description=e.get("description") or "",
+                    properties=e.get("properties") or {},
                 )
                 for e in data.get("entities", [])
+                if e.get("name")   
             ]
             relations = [
                 Relation(
-                    subject=r.get("subject", ""),
-                    predicate=r.get("predicate", ""),
-                    object=r.get("object", ""),
-                    properties=r.get("properties", {}),
+                    subject=r.get("subject") or "",
+                    predicate=r.get("predicate") or "",
+                    object=r.get("object") or "",
+                    properties=r.get("properties") or {},
                 )
                 for r in data.get("relations", [])
+                if r.get("subject") and r.get("predicate") and r.get("object")  # all required
             ]
             return {"entities": entities, "relations": relations}
         except (json.JSONDecodeError, KeyError, TypeError) as exc:
-            logger.warning("Failed to parse extraction response: %s", exc)
+            logger.warning("Failed to parse extraction response: %s , response: %s", exc, response)
             return {"entities": [], "relations": []}
+

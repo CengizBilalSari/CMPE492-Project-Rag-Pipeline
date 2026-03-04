@@ -21,16 +21,16 @@ class VertexLLM(LLMInterface):
         self,
         model: str = "gemini-2.5-flash",
         temperature: float = 0.0,
-        max_tokens: int = 4096,
+        max_tokens: int = 8192,
     ) -> None:
         super().__init__(model=model, temperature=temperature, max_tokens=max_tokens)
-        
+
         project_id = os.getenv("GCP_PROJECT_ID")
         location = os.getenv("GCP_LOCATION", "global")
-        
+
         if not project_id:
-            raise ValueError("GCP_PROJECT_ID environment variable is not set. Please add it to your .env file.")
-            
+            raise ValueError("GCP_PROJECT_ID is not set in your .env file.")
+
         try:
             self._client = ChatVertexAI(
                 model=self.model,
@@ -40,7 +40,7 @@ class VertexLLM(LLMInterface):
                 max_tokens=self.max_tokens,
             )
         except Exception as exc:
-            raise RuntimeError(f"Failed to initialize Vertex AI client. Make sure you ran 'gcloud auth application-default login'. Error: {exc}") from exc
+            raise RuntimeError(f"Failed to initialize Vertex AI client: {exc}") from exc
 
     async def ainvoke(
         self,

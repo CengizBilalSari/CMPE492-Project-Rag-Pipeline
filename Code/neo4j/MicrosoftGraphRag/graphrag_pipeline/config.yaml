@@ -9,7 +9,7 @@ llm:
   provider: "vertex"       # Options: groq, openai, vertex
   model: "gemini-2.5-flash"
   temperature: 0.0
-  max_tokens: 4096
+  max_tokens: 32768
 
 embedding:
   model: "all-MiniLM-L6-v2"
@@ -19,7 +19,7 @@ neo4j:
   # URI, user, password loaded from .env
 
 extraction:
-  max_concurrency: 1    # Keep low for 429 error
+  max_concurrency: 4   # Keep low for 429 error
 
 entity_resolution:
   enabled: true

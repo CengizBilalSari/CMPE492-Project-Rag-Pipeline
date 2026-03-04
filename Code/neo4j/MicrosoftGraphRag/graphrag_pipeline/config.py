@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 
 _PROJECT_ROOT = Path(__file__).resolve().parent
-load_dotenv(".env")
+load_dotenv()
 
 class ChunkingConfig(BaseModel):
     strategy: str = "recursive"
