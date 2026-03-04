@@ -1,6 +1,3 @@
-"""
-Parallel community summarization using an LLM.
-"""
 
 from __future__ import annotations
 
@@ -26,14 +23,7 @@ Return ONLY the summary text, no JSON, no markdown."""
 
 
 class CommunitySummarizer:
-    """Generates summaries for each community using an LLM in parallel.
 
-    Args:
-        driver: Neo4j driver.
-        llm: Language model used for summarization.
-        max_concurrency: Max parallel LLM calls.
-        database: Neo4j database name.
-    """
 
     def __init__(
         self,
@@ -48,14 +38,6 @@ class CommunitySummarizer:
         self.database = database
 
     async def summarize(self, communities: dict[int, list[str]]) -> dict[int, str]:
-        """Generate summaries for all communities in parallel.
-
-        Args:
-            communities: Mapping of community_id → list of entity names.
-
-        Returns:
-            Mapping of community_id → summary text.
-        """
         sem = asyncio.Semaphore(self.max_concurrency)
         tasks = {
             comm_id: self._summarize_community(sem, comm_id, entity_names)
@@ -81,9 +63,7 @@ class CommunitySummarizer:
         entity_names: list[str],
     ) -> str:
         async with sem:
-            # Fetch entity details (name, type, description)
             entity_details = self._fetch_entity_details(entity_names)
-            # Fetch relationships for these entities
             relationships = self._fetch_community_relationships(entity_names)
 
             prompt = COMMUNITY_SUMMARY_PROMPT.format(
@@ -94,7 +74,6 @@ class CommunitySummarizer:
             return await self.llm.ainvoke(prompt)
 
     def _fetch_entity_details(self, entity_names: list[str]) -> str:
-        """Fetch name, type, and description for the given entities."""
         records, _, _ = self.driver.execute_query(
             """
             MATCH (e:Entity)
@@ -116,7 +95,6 @@ class CommunitySummarizer:
         return "\n".join(lines)
 
     def _fetch_community_relationships(self, entity_names: list[str]) -> str:
-        """Fetch RELATED_TO edges among the given entities."""
         records, _, _ = self.driver.execute_query(
             """
             MATCH (s:Entity)-[r:RELATED_TO]->(o:Entity)

@@ -1,17 +1,3 @@
-"""
-Chunking module — all strategies in one place.
-
-Provides :func:`get_chunker` to instantiate any supported chunking strategy.
-
-Strategies:
-  - sentence:      sentence boundary splitting
-  - token:         tiktoken-based token splitting
-  - character:     raw character count splitting
-  - recursive:     recursive character splitting (default)
-  - semantic:      embedding-based semantic grouping
-  - propositional: LLM → atomic facts → semantic grouping
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -26,12 +12,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-# ---------------------------------------------------------------------------
-# Base
-# ---------------------------------------------------------------------------
-
 class BaseChunker(ABC):
-    """Interface that every chunking strategy must implement."""
 
     def __init__(self, chunk_size: int = 1000, chunk_overlap: int = 200) -> None:
         self.chunk_size = chunk_size
@@ -39,20 +20,13 @@ class BaseChunker(ABC):
 
     @abstractmethod
     def chunk(self, text: str) -> list[str]:
-        """Split *text* into a list of chunks."""
         ...
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(chunk_size={self.chunk_size}, overlap={self.chunk_overlap})"
 
 
-# ---------------------------------------------------------------------------
-# Simple LangChain-backed strategies
-# ---------------------------------------------------------------------------
-
 class SentenceChunker(BaseChunker):
-    """Splits text by sentence boundaries (NLTK)."""
-
     def chunk(self, text: str) -> list[str]:
         from langchain_text_splitters import NLTKTextSplitter
         return NLTKTextSplitter(
@@ -61,8 +35,6 @@ class SentenceChunker(BaseChunker):
 
 
 class TokenChunker(BaseChunker):
-    """Splits text by token count (tiktoken)."""
-
     def chunk(self, text: str) -> list[str]:
         from langchain_text_splitters import TokenTextSplitter
         return TokenTextSplitter(
@@ -71,8 +43,6 @@ class TokenChunker(BaseChunker):
 
 
 class CharacterChunker(BaseChunker):
-    """Splits text by raw character count."""
-
     def chunk(self, text: str) -> list[str]:
         from langchain_text_splitters import CharacterTextSplitter
         return CharacterTextSplitter(
@@ -81,8 +51,6 @@ class CharacterChunker(BaseChunker):
 
 
 class RecursiveChunker(BaseChunker):
-    """Splits text recursively by a hierarchy of separators (default strategy)."""
-
     def chunk(self, text: str) -> list[str]:
         from langchain_text_splitters import RecursiveCharacterTextSplitter
         return RecursiveCharacterTextSplitter(
@@ -90,13 +58,7 @@ class RecursiveChunker(BaseChunker):
         ).split_text(text)
 
 
-# ---------------------------------------------------------------------------
-# Embedding-based strategies
-# ---------------------------------------------------------------------------
-
 class SemanticChunker(BaseChunker):
-    """Splits text into semantically coherent chunks using HuggingFace embeddings."""
-
     def __init__(
         self, chunk_size: int = 1000, chunk_overlap: int = 200,
         embedding_model: str = "all-MiniLM-L6-v2",
@@ -113,9 +75,6 @@ class SemanticChunker(BaseChunker):
         return [doc.page_content for doc in docs]
 
 
-# ---------------------------------------------------------------------------
-# LLM-based propositional strategy
-# ---------------------------------------------------------------------------
 
 _PROPOSITION_SYSTEM_PROMPT = """You are a text decomposition expert. Break the following text into a list of atomic, standalone propositions (facts).
 
@@ -177,11 +136,6 @@ class PropositionalChunker(BaseChunker):
         docs = LCSemanticChunker(embeddings=embeddings).create_documents(["\n".join(propositions)])
         return [doc.page_content for doc in docs]
 
-
-# ---------------------------------------------------------------------------
-# Factory
-# ---------------------------------------------------------------------------
-
 _REGISTRY: dict[str, type[BaseChunker]] = {
     "sentence": SentenceChunker,
     "token": TokenChunker,
@@ -199,18 +153,6 @@ def get_chunker(
     llm: LLMInterface | None = None,
     **kwargs: Any,
 ) -> BaseChunker:
-    """Create a chunker by strategy name.
-
-    Args:
-        strategy: One of ``sentence``, ``token``, ``character``, ``recursive``,
-                  ``semantic``, or ``propositional``.
-        chunk_size: Target chunk size.
-        chunk_overlap: Overlap between consecutive chunks.
-        llm: Required when *strategy* is ``propositional``.
-
-    Raises:
-        ValueError: If the strategy is not recognized or propositional is missing llm.
-    """
     cls = _REGISTRY.get(strategy.lower())
     if cls is None:
         raise ValueError(f"Unknown chunking strategy '{strategy}'. Choose from: {list(_REGISTRY.keys())}")
