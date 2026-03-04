@@ -130,7 +130,7 @@ class EntityRelationshipExtractor:
         async with sem:
             logger.info("Extracting entities from chunk %d (%d chars)", index, len(chunk))
             response = await self.llm.ainvoke(prompt=chunk, system_prompt=ER_SYSTEM_PROMPT)
-            await asyncio.sleep(1.5)  # Rate-limit guard for Groq free tier (unit: second)
+            await asyncio.sleep(1.5)
             parsed = self._parse_response(response)
             return ExtractionResult(
                 chunk_index=index,

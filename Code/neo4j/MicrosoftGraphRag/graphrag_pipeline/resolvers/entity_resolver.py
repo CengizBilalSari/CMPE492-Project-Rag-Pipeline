@@ -1,13 +1,3 @@
-"""
-Entity Resolution pipeline using Neo4j GDS:
-  1. Embed entity names → store as node properties in Neo4j
-  2. GDS KNN graph projection over embeddings
-  3. GDS Weakly Connected Components → candidate merge groups
-  4. Word-distance filtering within each WCC (Levenshtein)
-  5. LLM evaluation for final merge / reject decision
-  6. Apply merges in Neo4j
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -23,13 +13,8 @@ from ..llm.base import LLMInterface
 logger = logging.getLogger(__name__)
 
 
-# ---------------------------------------------------------------------------
-# Data
-# ---------------------------------------------------------------------------
-
 @dataclass
 class MergeDecision:
-    """Result of an LLM merge evaluation for a group of candidate entities."""
     group: list[str]
     should_merge: bool
     canonical_name: str
@@ -55,9 +40,6 @@ Return ONLY valid JSON:
 }}"""
 
 
-# ---------------------------------------------------------------------------
-# Resolver
-# ---------------------------------------------------------------------------
 
 class EntityResolver:
     """Performs entity resolution entirely within Neo4j using GDS.

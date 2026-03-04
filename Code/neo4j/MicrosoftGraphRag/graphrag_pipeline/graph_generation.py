@@ -124,6 +124,7 @@ class GraphRAGPipeline:
             database=self.config.neo4j.database,
             algorithm=algo,
             resolution=self.config.community_detection.resolution,
+            level=self.config.community_detection.level,
         )
         communities = detector.detect()
         logger.info("  → %d communities detected.", len(communities))

@@ -3,9 +3,6 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-import networkx as nx
-import networkx.algorithms.community as nx_comm
-
 logger = logging.getLogger(__name__)
 
 
@@ -17,11 +14,21 @@ class CommunityDetector:
         database: str = "neo4j",
         algorithm: str = "louvain",
         resolution: float = 1.0,
+        level: int = -1,
     ) -> None:
+        """
+        Args:
+            level: Which hierarchy level to use.
+                   0 = finest (many small communities),
+                  -1 = coarsest (few large communities, default).
+                  Any positive integer selects that level index.
+                  If the requested level exceeds the available levels it is clamped to the last one.
+        """
         self.driver = driver
         self.database = database
         self.algorithm = algorithm.lower()
         self.resolution = resolution
+        self.level = level
 
         try:
             from graphdatascience import GraphDataScience
@@ -71,12 +78,32 @@ class CommunityDetector:
         )
 
         all_levels = self._extract_all_levels(result_df)
-        logger.info("[%s] Hierarchy has %d level(s).", self.algorithm.upper(), len(all_levels))
+        num_levels = len(all_levels)
+        logger.info("[%s] Hierarchy has %d level(s).", self.algorithm.upper(), num_levels)
 
-        nx_graph = self._build_networkx_graph()
+        # Log every level's stats so the user can inspect and choose
+        for lvl_idx, node_to_community in enumerate(all_levels):
+            comm_count = len(set(node_to_community.values()))
+            sizes = {}
+            for comm_id in node_to_community.values():
+                sizes[comm_id] = sizes.get(comm_id, 0) + 1
+            size_vals = list(sizes.values())
+            avg = sum(size_vals) / len(size_vals) if size_vals else 0
+            logger.info(
+                "  Level %d | communities=%d | avg_size=%.1f | min=%d | max=%d",
+                lvl_idx, comm_count, avg,
+                min(size_vals) if size_vals else 0,
+                max(size_vals) if size_vals else 0,
+            )
 
-        best_level_idx = self._select_best_level(all_levels, nx_graph)
-        selected = all_levels[best_level_idx]
+        # Resolve negative index (Python-style: -1 = last)
+        level_idx = self.level if self.level >= 0 else num_levels + self.level
+        level_idx = max(0, min(level_idx, num_levels - 1))  # clamp
+        logger.info(
+            "Using level %d of %d (config level=%d).",
+            level_idx, num_levels, self.level,
+        )
+        selected = all_levels[level_idx]
 
         node_ids = list(selected.keys())
         id_to_name = self._batch_get_entity_names(node_ids)
@@ -88,9 +115,9 @@ class CommunityDetector:
                 communities.setdefault(comm_id, []).append(name)
 
         logger.info(
-            "[%s] Selected level %d → %d communities across %d entities.",
+            "[%s] Level %d → %d communities across %d entities.",
             self.algorithm.capitalize(),
-            best_level_idx,
+            level_idx,
             len(communities),
             sum(len(v) for v in communities.values()),
         )
@@ -98,7 +125,6 @@ class CommunityDetector:
         self._gds.graph.drop(G)
         return communities
 
- 
     def _run_algorithm(self, G: Any):
         if self.algorithm == "leiden":
             logger.info("Running GDS Leiden (resolution=%.2f, all levels)...", self.resolution)
@@ -111,7 +137,6 @@ class CommunityDetector:
             logger.info("Running GDS Louvain (resolution=%.2f, all levels)...", self.resolution)
             return self._gds.louvain.stream(G, includeIntermediateCommunities=True)
 
-  
     def _extract_all_levels(self, result_df) -> list[dict[int, int]]:
         levels: list[dict[int, int]] = []
         has_intermediate = "intermediateCommunityIds" in result_df.columns
@@ -133,65 +158,6 @@ class CommunityDetector:
         levels.append(final_map)
         return levels
 
- 
-    def _select_best_level(
-        self,
-        all_levels: list[dict[int, int]],
-        nx_graph: nx.Graph,
-    ) -> int:
-        best_idx = 0
-        best_modularity = -1.0
-
-        for lvl_idx, node_to_community in enumerate(all_levels):
-            partition: dict[int, set[int]] = {}
-            for node_id, comm_id in node_to_community.items():
-                partition.setdefault(comm_id, set()).add(node_id)
-
-            num_communities = len(partition)
-            sizes = [len(s) for s in partition.values()]
-            avg_size = sum(sizes) / len(sizes) if sizes else 0.0
-
-            try:
-                communities_list = [
-                    frozenset(members & set(nx_graph.nodes))
-                    for members in partition.values()
-                ]
-                communities_list = [c for c in communities_list if c]
-                modularity = nx_comm.modularity(nx_graph, communities_list)
-            except Exception as exc:
-                modularity = 0.0
-                logger.warning("Modularity computation failed for level %d: %s", lvl_idx, exc)
-
-            logger.info(
-                "  Level %d | communities=%d | avg_size=%.1f | min=%d | max=%d | modularity=%.4f",
-                lvl_idx, num_communities, avg_size,
-                min(sizes) if sizes else 0,
-                max(sizes) if sizes else 0,
-                modularity,
-            )
-
-            if modularity > best_modularity:
-                best_modularity = modularity
-                best_idx = lvl_idx
-
-        logger.info(
-            "Best level: %d  (modularity=%.4f)", best_idx, best_modularity,
-        )
-        return best_idx
-
-    def _build_networkx_graph(self) -> nx.Graph:
-        records, _, _ = self.driver.execute_query(
-            "MATCH (s:Entity)-[:RELATED_TO]->(o:Entity) RETURN id(s) AS src, id(o) AS dst",
-            database_=self.database,
-        )
-        G = nx.Graph()
-        for r in records:
-            G.add_edge(r["src"], r["dst"])
-        logger.info(
-            "NetworkX graph built: %d nodes, %d edges.", G.number_of_nodes(), G.number_of_edges(),
-        )
-        return G
-
     def _batch_get_entity_names(self, node_ids: list[int]) -> dict[int, str]:
         if not node_ids:
             return {}
@@ -201,11 +167,3 @@ class CommunityDetector:
             database_=self.database,
         )
         return {r["nid"]: r["name"] for r in records if r["name"]}
-
-    def _get_entity_name(self, node_id: int) -> str | None:
-        records, _, _ = self.driver.execute_query(
-            "MATCH (e:Entity) WHERE id(e) = $nid RETURN e.name AS name",
-            nid=node_id,
-            database_=self.database,
-        )
-        return records[0]["name"] if records else None

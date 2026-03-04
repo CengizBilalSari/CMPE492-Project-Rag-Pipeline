@@ -1,5 +1,3 @@
-"""Analyzers package — community detection and summarization."""
-
 from .community_detector import CommunityDetector
 from .community_summarizer import CommunitySummarizer
 

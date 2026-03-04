@@ -1,10 +1,3 @@
-"""
-Neo4j writer implementing the full Microsoft GraphRAG schema.
-
-Node labels:  Document, Chunk, Entity, Community, CommunitySummary
-Relationships: HAS_CHUNK, MENTIONS, RELATED_TO (with properties), IN_COMMUNITY, HAS_SUMMARY
-"""
-
 from __future__ import annotations
 
 import logging
@@ -17,16 +10,6 @@ logger = logging.getLogger(__name__)
 
 
 class GraphRAGNeo4jWriter:
-    """Writes the full GraphRAG knowledge graph to Neo4j.
-
-    All write operations use explicit transactions for safety.
-
-    Args:
-        driver: An active ``neo4j.Driver`` instance.
-        database: Neo4j database name.
-        batch_size: Number of items per batch write.
-    """
-
     def __init__(
         self,
         driver: Any,
@@ -36,10 +19,6 @@ class GraphRAGNeo4jWriter:
         self.driver = driver
         self.database = database
         self.batch_size = batch_size
-
-    # ------------------------------------------------------------------ #
-    # Schema setup
-    # ------------------------------------------------------------------ #
 
     def create_indexes(self) -> None:
         """Create indexes and constraints for optimal performance."""
@@ -58,22 +37,12 @@ class GraphRAGNeo4jWriter:
                 except Exception as exc:
                     logger.warning("Index/constraint creation skipped: %s", exc)
         logger.info("Neo4j indexes and constraints created.")
-
-    # ------------------------------------------------------------------ #
-    # Document & Chunk writing
-    # ------------------------------------------------------------------ #
-
     def write_document(
         self,
         doc_id: Optional[str] = None,
         title: str = "",
         source: str = "",
     ) -> str:
-        """Create (or merge) a Document node.
-
-        Returns:
-            The document ID.
-        """
         doc_id = doc_id or str(uuid.uuid4())
         with self.driver.session(database=self.database) as session:
             session.run(
@@ -89,11 +58,6 @@ class GraphRAGNeo4jWriter:
         return doc_id
 
     def write_chunks(self, doc_id: str, chunks: list[str]) -> list[str]:
-        """Create Chunk nodes linked to a Document via ``HAS_CHUNK``.
-
-        Returns:
-            List of chunk IDs.
-        """
         chunk_ids: list[str] = []
         with self.driver.session(database=self.database) as session:
             for idx, text in enumerate(chunks):
@@ -114,24 +78,14 @@ class GraphRAGNeo4jWriter:
         logger.info("Wrote %d chunks for document %s.", len(chunks), doc_id)
         return chunk_ids
 
-    # ------------------------------------------------------------------ #
-    # Entity & Relation writing
-    # ------------------------------------------------------------------ #
 
     def write_entities_and_relations(
         self,
         chunk_ids: list[str],
         extraction_results: list[ExtractionResult],
     ) -> None:
-        """Write Entity nodes, MENTIONS relationships, and RELATED_TO edges.
-
-        Args:
-            chunk_ids: Chunk IDs corresponding to each extraction result.
-            extraction_results: Results from ``EntityRelationshipExtractor``.
-        """
         with self.driver.session(database=self.database) as session:
             for chunk_id, result in zip(chunk_ids, extraction_results):
-                # Write entities
                 for entity in result.entities:
                     session.run(
                         """
@@ -147,7 +101,6 @@ class GraphRAGNeo4jWriter:
                         chunk_id=chunk_id,
                     )
 
-                # Write relations
                 for rel in result.relations:
                     session.run(
                         """
@@ -164,16 +117,8 @@ class GraphRAGNeo4jWriter:
         total_relations = sum(len(r.relations) for r in extraction_results)
         logger.info("Wrote %d entities, %d relations.", total_entities, total_relations)
 
-    # ------------------------------------------------------------------ #
-    # Community writing
-    # ------------------------------------------------------------------ #
 
     def write_communities(self, communities: dict[int, list[str]]) -> None:
-        """Create Community nodes and ``IN_COMMUNITY`` relationships.
-
-        Args:
-            communities: Mapping of community_id → list of entity names.
-        """
         with self.driver.session(database=self.database) as session:
             for comm_id, entity_names in communities.items():
                 session.run(
@@ -194,11 +139,6 @@ class GraphRAGNeo4jWriter:
         logger.info("Wrote %d communities.", len(communities))
 
     def write_community_summaries(self, summaries: dict[int, str]) -> None:
-        """Create CommunitySummary nodes and ``HAS_SUMMARY`` relationships.
-
-        Args:
-            summaries: Mapping of community_id → summary text.
-        """
         with self.driver.session(database=self.database) as session:
             for comm_id, summary_text in summaries.items():
                 summary_id = f"summary:{comm_id}"
@@ -215,12 +155,8 @@ class GraphRAGNeo4jWriter:
                 )
         logger.info("Wrote %d community summaries.", len(summaries))
 
-    # ------------------------------------------------------------------ #
-    # Utility
-    # ------------------------------------------------------------------ #
 
     def clear_database(self) -> None:
-        """Delete all nodes and relationships in the database. Use with caution."""
         with self.driver.session(database=self.database) as session:
             session.run("MATCH (n) DETACH DELETE n")
         logger.warning("Database cleared.")

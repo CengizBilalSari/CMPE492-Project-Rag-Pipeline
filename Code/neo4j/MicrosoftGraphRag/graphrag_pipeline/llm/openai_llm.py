@@ -1,7 +1,3 @@
-"""
-OpenAI LLM implementation.
-"""
-
 from __future__ import annotations
 
 import logging
@@ -14,11 +10,6 @@ logger = logging.getLogger(__name__)
 
 
 class OpenAILLM(LLMInterface):
-    """LLM backed by the OpenAI Chat Completions API.
-
-    Reads ``OPENAI_API_KEY`` from the environment.
-    """
-
     def __init__(
         self,
         model: str = "gpt-4o",

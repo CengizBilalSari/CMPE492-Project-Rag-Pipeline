@@ -51,6 +51,7 @@ class EntityResolutionConfig(BaseModel):
 class CommunityDetectionConfig(BaseModel):
     algorithm: str = "louvain"
     resolution: float = 1.0
+    level: int = -1
 
 
 class GlobalSearchConfig(BaseModel):
