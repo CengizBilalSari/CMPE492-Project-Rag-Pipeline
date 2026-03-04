@@ -27,6 +27,7 @@ entity_resolution:
   similarity_threshold: 0.85
   word_distance_threshold: 3
   max_concurrency: 1
+  use_llm: false
 
 community_detection:
   algorithm: "louvain"   # Options: louvain, leiden (requires Neo4j GDS)

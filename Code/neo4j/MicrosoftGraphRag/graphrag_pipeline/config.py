@@ -42,6 +42,7 @@ class ExtractionConfig(BaseModel):
 
 class EntityResolutionConfig(BaseModel):
     enabled: bool = True
+    use_llm: bool = True
     k_neighbors: int = 10
     similarity_threshold: float = 0.85
     word_distance_threshold: int = 3

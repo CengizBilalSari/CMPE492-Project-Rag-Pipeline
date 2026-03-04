@@ -62,15 +62,6 @@ Rules:
 # TODO(the entity types should be more specific, this prompt could create problem for medicine domain)
 
 class EntityRelationshipExtractor:
-    """Extracts entities and relations from text chunks using an LLM.
-
-    Processes multiple chunks in parallel with configurable concurrency.
-
-    Args:
-        llm: The language model to use.
-        max_concurrency: Maximum number of parallel LLM calls.
-    """
-
     def __init__(self, llm: LLMInterface, max_concurrency: int = 5) -> None:
         self.llm = llm
         self.max_concurrency = max_concurrency

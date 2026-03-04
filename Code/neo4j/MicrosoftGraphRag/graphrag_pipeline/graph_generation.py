@@ -111,6 +111,7 @@ class GraphRAGPipeline:
                 word_distance_threshold=er_config.word_distance_threshold,
                 max_concurrency=er_config.max_concurrency,
                 database=self.config.neo4j.database,
+                use_llm=er_config.use_llm,
             )
             decisions = await resolver.resolve()
             logger.info("  → %d merge groups resolved.", len(decisions))
