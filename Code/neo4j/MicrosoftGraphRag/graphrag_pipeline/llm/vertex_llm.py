@@ -26,7 +26,7 @@ class VertexLLM(LLMInterface):
         super().__init__(model=model, temperature=temperature, max_tokens=max_tokens)
         
         project_id = os.getenv("GCP_PROJECT_ID")
-        location = os.getenv("GCP_LOCATION", "us-central1")
+        location = os.getenv("GCP_LOCATION", "global")
         
         if not project_id:
             raise ValueError("GCP_PROJECT_ID environment variable is not set. Please add it to your .env file.")

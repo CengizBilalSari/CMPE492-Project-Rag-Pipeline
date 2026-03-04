@@ -12,7 +12,6 @@ llm:
   max_tokens: 4096
 
 embedding:
-  provider: "openai"  # Local sentence-transformers (free, no API key)
   model: "all-MiniLM-L6-v2"
 
 neo4j:
@@ -20,14 +19,14 @@ neo4j:
   # URI, user, password loaded from .env
 
 extraction:
-  max_concurrency: 2    # Keep low for Groq free tier
+  max_concurrency: 1    # Keep low for 429 error
 
 entity_resolution:
   enabled: true
   k_neighbors: 10
   similarity_threshold: 0.85
   word_distance_threshold: 3
-  max_concurrency: 2
+  max_concurrency: 1
 
 community_detection:
   algorithm: "louvain"   # Options: louvain, leiden (requires Neo4j GDS)
