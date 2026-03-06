@@ -110,10 +110,29 @@ class GraphRAGPipeline:
             decisions = await resolver.resolve()
             logger.info("  → %d merge groups resolved.", len(decisions))
         else:
-            logger.info("Step 5/8: Entity resolution DISABLED — skipping.")
+            logger.info("Step 5/9: Entity resolution DISABLED — skipping.")
+
+        logger.info("Step 5b/9: Embedding entities for local search...")
+        entity_rows: list[tuple[str, str]] = []
+        with self._driver.session(database=self.config.neo4j.database) as session:
+            result = session.run("MATCH (e:Entity) RETURN e.name AS name, e.description AS description")
+            entity_rows = [(r["name"], r["description"] or "") for r in result if r["name"]]
+        logger.info("  → Embedding %d entities...", len(entity_rows))
+        if entity_rows:
+            embed_texts = [
+                f"{name}: {desc}".strip(": ") if desc else name
+                for name, desc in entity_rows
+            ]
+            entity_embeddings = await hf_embed(
+                embed_texts,
+                model_name=self.config.embedding.model,
+                show_progress=True,
+            )
+            name_to_emb = {name: emb for (name, _), emb in zip(entity_rows, entity_embeddings)}
+            self.writer.write_entity_embeddings(name_to_emb)
 
         algo = self.config.community_detection.algorithm
-        logger.info("Step 6/8: Community detection (%s via Neo4j GDS)...", algo)
+        logger.info("Step 6/9: Community detection (%s via Neo4j GDS)...", algo)
         detector = CommunityDetector(
             driver=self._driver,
             database=self.config.neo4j.database,
@@ -124,10 +143,10 @@ class GraphRAGPipeline:
         communities = detector.detect()
         logger.info("  → %d communities detected.", len(communities))
 
-        logger.info("Step 7/8: Writing communities to Neo4j...")
+        logger.info("Step 7/9: Writing communities to Neo4j...")
         self.writer.write_communities(communities)
 
-        logger.info("Step 8/8: Summarizing communities (parallel)...")
+        logger.info("Step 8/9: Summarizing communities (parallel)...")
         summarizer = CommunitySummarizer(
             driver=self._driver,
             llm=self.llm,
@@ -140,6 +159,7 @@ class GraphRAGPipeline:
         logger.info("=" * 60)
         logger.info("GraphRAG Pipeline COMPLETE")
         logger.info("=" * 60)
+
 
     def close(self) -> None:
         """Clean up resources."""

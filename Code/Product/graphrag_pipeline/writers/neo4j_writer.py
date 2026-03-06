@@ -156,6 +156,17 @@ class GraphRAGNeo4jWriter:
         logger.info("Wrote %d community summaries.", len(summaries))
 
 
+    def write_entity_embeddings(self, name_to_embedding: dict[str, list[float]]) -> None:
+        """Persist text_embedding on Entity nodes for local retriever similarity search."""
+        with self.driver.session(database=self.database) as session:
+            for name, emb in name_to_embedding.items():
+                session.run(
+                    "MATCH (e:Entity {name: $name}) SET e.text_embedding = $emb",
+                    name=name,
+                    emb=emb,
+                )
+        logger.info("Wrote text_embedding for %d entities.", len(name_to_embedding))
+
     def clear_database(self) -> None:
         with self.driver.session(database=self.database) as session:
             session.run("MATCH (n) DETACH DELETE n")
