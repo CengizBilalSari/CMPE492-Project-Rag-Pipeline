@@ -1,9 +1,4 @@
-"""
-Abstract base class for LLM providers.
-"""
-
 from __future__ import annotations
-
 import asyncio
 import logging
 from abc import ABC, abstractmethod
@@ -13,14 +8,6 @@ logger = logging.getLogger(__name__)
 
 
 class LLMInterface(ABC):
-    """Unified async interface for large language models.
-
-    Args:
-        model: Model identifier (e.g. 'gpt-4o', 'llama-3.3-70b-versatile').
-        temperature: Sampling temperature.
-        max_tokens: Maximum tokens in the response.
-    """
-
     def __init__(
         self,
         model: str,
@@ -31,7 +18,6 @@ class LLMInterface(ABC):
         self.temperature = temperature
         self.max_tokens = max_tokens
 
-    # ----- public API ----- #
 
     @abstractmethod
     async def ainvoke(
@@ -39,15 +25,7 @@ class LLMInterface(ABC):
         prompt: str,
         system_prompt: Optional[str] = None,
     ) -> str:
-        """Send a prompt to the LLM asynchronously and return the text response.
-
-        Args:
-            prompt: The user prompt.
-            system_prompt: Optional system-level instruction.
-
-        Returns:
-            The model's text response.
-        """
+     
         ...
 
     def invoke(
@@ -55,7 +33,6 @@ class LLMInterface(ABC):
         prompt: str,
         system_prompt: Optional[str] = None,
     ) -> str:
-        """Synchronous wrapper around :meth:`ainvoke`."""
         return asyncio.get_event_loop().run_until_complete(
             self.ainvoke(prompt, system_prompt)
         )

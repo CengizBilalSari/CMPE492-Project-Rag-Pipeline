@@ -1,7 +1,3 @@
-"""
-Groq LLM implementation.
-"""
-
 from __future__ import annotations
 
 import logging
@@ -14,11 +10,6 @@ logger = logging.getLogger(__name__)
 
 
 class GroqLLM(LLMInterface):
-    """LLM backed by the Groq inference API.
-
-    Reads ``GROQ_API_KEY`` from the environment.
-    """
-
     def __init__(
         self,
         model: str = "llama-3.3-70b-versatile",
