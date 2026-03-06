@@ -61,6 +61,13 @@ class GlobalSearchConfig(BaseModel):
     top_k: int = 10
 
 
+class LocalSearchConfig(BaseModel):
+    top_k_entities: int = 5
+    hop_depth: int = 1
+    max_chunks: int = 10
+    max_concurrency: int = 1
+
+
 class PipelineConfig(BaseModel):
     chunking: ChunkingConfig = ChunkingConfig()
     llm: LLMConfig = LLMConfig()
@@ -70,6 +77,7 @@ class PipelineConfig(BaseModel):
     entity_resolution: EntityResolutionConfig = EntityResolutionConfig()
     community_detection: CommunityDetectionConfig = CommunityDetectionConfig()
     global_search: GlobalSearchConfig = GlobalSearchConfig()
+    local_search: LocalSearchConfig = LocalSearchConfig()
 
 
 

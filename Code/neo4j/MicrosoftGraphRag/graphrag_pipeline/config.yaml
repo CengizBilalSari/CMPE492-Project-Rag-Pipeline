@@ -32,3 +32,8 @@ entity_resolution:
 community_detection:
   algorithm: "louvain"   # Options: louvain, leiden (requires Neo4j GDS)
   resolution: 1.0
+
+local_search:
+  top_k_entities: 5
+  hop_depth: 1
+  max_chunks: 10
