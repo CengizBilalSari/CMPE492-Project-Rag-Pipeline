@@ -1,4 +1,0 @@
-user_input,response,score,reason,reference
-How to install Ragas?,You can install it using npm install .,fail,install with pip using ragas[examples],install with pip using ragas[examples]
-What are the main features of Ragas?,"It features experiments, datasets, and evaluation metrics.",pass,The response accurately reflects the information in the grading notes.,organised around - experiments - datasets - metrics.
-What is Ragas 0.3?,Ragas 0.3 is a tool used to evaluate LLM apps.,fail,Misaligned semantic meaning,Ragas 0.3 is a library for evaluating LLM applications.
