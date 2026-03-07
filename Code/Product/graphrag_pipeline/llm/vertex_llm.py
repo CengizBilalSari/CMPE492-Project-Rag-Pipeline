@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class VertexLLM(LLMInterface):
     def __init__(
         self,
-        model: str = "gemini-2.5-flash",
+        model: str = "gemini-1.5-flash",
         temperature: float = 0.0,
         max_tokens: int = 8192,
     ) -> None:
@@ -38,6 +38,7 @@ class VertexLLM(LLMInterface):
                 location=location,
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
+                max_retries=0,
             )
         except Exception as exc:
             raise RuntimeError(f"Failed to initialize Vertex AI client: {exc}") from exc
@@ -52,7 +53,34 @@ class VertexLLM(LLMInterface):
             messages.append(SystemMessage(content=system_prompt))
         messages.append(HumanMessage(content=prompt))
 
-        response = await self._client.ainvoke(messages)
+        import time
+        start_time = time.time()
+        
+        async def _call():
+            return await self._client.ainvoke(messages)
+            
+        response = await self._execute_with_retry("Vertex AI", _call)
+        
+        duration_sec = time.time() - start_time
+        
         content = str(response.content)
+        
+        prompt_tokens = 0
+        completion_tokens = 0
+        
+        if hasattr(response, "usage_metadata") and response.usage_metadata is not None:
+            prompt_tokens = response.usage_metadata.get("input_tokens", 0)
+            completion_tokens = response.usage_metadata.get("output_tokens", 0)
+        elif hasattr(response, "response_metadata") and "token_usage" in response.response_metadata:
+            usage = response.response_metadata["token_usage"]
+            prompt_tokens = getattr(usage, "prompt_token_count", 0)
+            if not isinstance(prompt_tokens, int):
+                prompt_tokens = usage.get("prompt_token_count", 0)
+            completion_tokens = getattr(usage, "candidates_token_count", 0)
+            if not isinstance(completion_tokens, int):
+                completion_tokens = usage.get("candidates_token_count", 0)
+                
+        self._update_and_log_usage(prompt_tokens, completion_tokens, duration_sec)
+        
         logger.debug("Vertex AI response (%s chars): %s...", len(content), content[:200])
         return content
