@@ -36,8 +36,12 @@ class CommunitySummarizer:
         self.llm = llm
         self.max_concurrency = max_concurrency
         self.database = database
+        self.completed_summaries: int = 0
+        self.total_communities: int = 0
 
     async def summarize(self, communities: dict[int, list[str]]) -> dict[int, str]:
+        self.total_communities = len(communities)
+        self.completed_summaries = 0
         sem = asyncio.Semaphore(self.max_concurrency)
         tasks = {
             comm_id: self._summarize_community(sem, comm_id, entity_names)
@@ -63,26 +67,34 @@ class CommunitySummarizer:
         entity_names: list[str],
     ) -> str:
         async with sem:
-            entity_details = self._fetch_entity_details(entity_names)
-            relationships = self._fetch_community_relationships(entity_names)
+            entity_details = await self._fetch_entity_details(entity_names)
+            relationships = await self._fetch_community_relationships(entity_names)
 
             prompt = COMMUNITY_SUMMARY_PROMPT.format(
                 entities=entity_details,
                 relationships=relationships,
             )
-            logger.info("Summarizing community %d (%d entities)", comm_id, len(entity_names))
-            return await self.llm.ainvoke(prompt)
+            
+            result = await self.llm.ainvoke(prompt)
+            self.completed_summaries += 1
+            logger.info("Summarized community %d  [%d / %d completed]", 
+                        comm_id, self.completed_summaries, self.total_communities)
+            return result
 
-    def _fetch_entity_details(self, entity_names: list[str]) -> str:
-        records, _, _ = self.driver.execute_query(
-            """
-            MATCH (e:Entity)
-            WHERE e.name IN $names
-            RETURN e.name AS name, e.type AS type, e.description AS description
-            """,
-            names=entity_names,
-            database_=self.database,
-        )
+    async def _fetch_entity_details(self, entity_names: list[str]) -> str:
+        def _run_query():
+            records, _, _ = self.driver.execute_query(
+                """
+                MATCH (e:Entity)
+                WHERE e.name IN $names
+                RETURN e.name AS name, e.type AS type, e.description AS description
+                """,
+                names=entity_names,
+                database_=self.database,
+            )
+            return records
+            
+        records = await asyncio.to_thread(_run_query)
         if not records:
             return ", ".join(entity_names)
         lines = []
@@ -94,16 +106,20 @@ class CommunitySummarizer:
             lines.append(entry)
         return "\n".join(lines)
 
-    def _fetch_community_relationships(self, entity_names: list[str]) -> str:
-        records, _, _ = self.driver.execute_query(
-            """
-            MATCH (s:Entity)-[r:RELATED_TO]->(o:Entity)
-            WHERE s.name IN $names AND o.name IN $names
-            RETURN s.name AS source, r.predicate AS predicate, o.name AS target
-            """,
-            names=entity_names,
-            database_=self.database,
-        )
+    async def _fetch_community_relationships(self, entity_names: list[str]) -> str:
+        def _run_query():
+            records, _, _ = self.driver.execute_query(
+                """
+                MATCH (s:Entity)-[r:RELATED_TO]->(o:Entity)
+                WHERE s.name IN $names AND o.name IN $names
+                RETURN s.name AS source, r.predicate AS predicate, o.name AS target
+                """,
+                names=entity_names,
+                database_=self.database,
+            )
+            return records
+            
+        records = await asyncio.to_thread(_run_query)
         if not records:
             return "No direct relationships found."
         lines = [f"{r['source']} --[{r['predicate']}]--> {r['target']}" for r in records]

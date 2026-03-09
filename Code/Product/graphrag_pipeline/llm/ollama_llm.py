@@ -9,23 +9,21 @@ from .base import LLMInterface
 logger = logging.getLogger(__name__)
 
 
-class GroqLLM(LLMInterface):
+class OllamaLLM(LLMInterface):
     def __init__(
         self,
-        model: str = "llama-3.3-70b-versatile",
+        model: str = "llama3",
         temperature: float = 0.0,
-        max_tokens: int = 4096,
+        max_tokens: int = 8192,
     ) -> None:
         super().__init__(model=model, temperature=temperature, max_tokens=max_tokens)
         try:
-            from groq import AsyncGroq
+            from ollama import AsyncClient
         except ImportError as exc:
-            raise ImportError("Install the 'groq' package: pip install groq") from exc
+            raise ImportError("Install the 'ollama' package: pip install ollama") from exc
 
-        api_key = os.getenv("GROQ_API_KEY")
-        if not api_key:
-            raise ValueError("GROQ_API_KEY environment variable is not set.")
-        self._client = AsyncGroq(api_key=api_key, max_retries=0)
+        host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+        self._client = AsyncClient(host=host)
 
     async def ainvoke(
         self,
@@ -41,26 +39,26 @@ class GroqLLM(LLMInterface):
         start_time = time.time()
         
         async def _call():
-            return await self._client.chat.completions.create(
+            options = {
+                "temperature": self.temperature,
+                "num_predict": self.max_tokens,
+            }
+            return await self._client.chat(
                 model=self.model,
                 messages=messages,
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
+                options=options,
             )
             
-        response = await self._execute_with_retry("Groq", _call)
+        response = await self._execute_with_retry("Ollama", _call)
         
         duration_sec = time.time() - start_time
         
-        content = response.choices[0].message.content or ""
+        content = response.get("message", {}).get("content", "")
         
-        prompt_tokens = 0
-        completion_tokens = 0
-        if hasattr(response, "usage") and response.usage:
-            prompt_tokens = response.usage.prompt_tokens or 0
-            completion_tokens = response.usage.completion_tokens or 0
+        prompt_tokens = response.get("prompt_eval_count", 0)
+        completion_tokens = response.get("eval_count", 0)
             
         self._update_and_log_usage(prompt_tokens, completion_tokens, duration_sec)
         
-        logger.debug("Groq response (%s tokens): %s...", len(content), content[:200])
+        logger.debug("Ollama response (%s tokens): %s...", len(content), content[:200])
         return content

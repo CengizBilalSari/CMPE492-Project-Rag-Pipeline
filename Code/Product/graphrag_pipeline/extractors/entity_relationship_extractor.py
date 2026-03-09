@@ -96,7 +96,7 @@ class EntityRelationshipExtractor:
     ) -> ExtractionResult:
         async with sem:
             logger.info("Extracting entities from chunk %d (%d chars)", index, len(chunk))
-            response = await self._invoke_with_backoff(chunk)
+            response = await self.llm.ainvoke(prompt=chunk, system_prompt=ER_SYSTEM_PROMPT)
             parsed = self._parse_response(response)
             return ExtractionResult(
                 chunk_index=index,
@@ -104,26 +104,6 @@ class EntityRelationshipExtractor:
                 entities=parsed["entities"],
                 relations=parsed["relations"],
             )
-
-    async def _invoke_with_backoff(self, chunk: str, max_retries: int = 5) -> str:
-        """Call the LLM with exponential backoff on 429 / rate-limit errors."""
-        wait = 2.0
-        for attempt in range(max_retries):
-            try:
-                return await self.llm.ainvoke(prompt=chunk, system_prompt=ER_SYSTEM_PROMPT)
-            except Exception as exc:
-                err = str(exc).lower()
-                is_rate_limit = "429" in err or "quota" in err or "rate" in err or "resource exhausted" in err
-                if is_rate_limit and attempt < max_retries - 1:
-                    logger.warning(
-                        "Rate limit hit on chunk (attempt %d/%d) — retrying in %.1fs...",
-                        attempt + 1, max_retries, wait,
-                    )
-                    await asyncio.sleep(wait)
-                    wait = min(wait * 2, 60.0)  # cap at 60s
-                else:
-                    raise
-        raise RuntimeError("Max retries exceeded for chunk extraction")
 
 
     @staticmethod

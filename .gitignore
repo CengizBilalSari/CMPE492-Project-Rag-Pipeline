@@ -23,6 +23,8 @@ __pycache__/
 
 #plugins
 Code/neo4j/**/plugins/*.jar
+Code/neo4j/*
+
 Code/TutorialsAndExperiments/PrimeKG/HPO_KG/data/*
 Code/TutorialsAndExperiments/PrimeKG/HPO_KG/import/*
 Code/neo4j/MicrosoftGraphRag/graphrag_project/*
