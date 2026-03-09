@@ -9,13 +9,15 @@ from typing import Any, Optional
 
 import neo4j
 
-from .config import PipelineConfig, load_config
-from .llm import get_llm, LLMInterface
-from .chunkers import get_chunker
-from .extractors import EntityRelationshipExtractor
-from .resolvers import EntityResolver
-from .writers import GraphRAGNeo4jWriter
-from .analyzers import CommunityDetector, CommunitySummarizer
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from graphrag_pipeline.config import PipelineConfig, load_config
+from graphrag_pipeline.llm import get_llm, LLMInterface
+from graphrag_pipeline.chunkers import get_chunker
+from graphrag_pipeline.extractors import EntityRelationshipExtractor
+from graphrag_pipeline.resolvers import EntityResolver
+from graphrag_pipeline.writers import GraphRAGNeo4jWriter
+from graphrag_pipeline.analyzers import CommunityDetector, CommunitySummarizer
 
 logging.basicConfig(
     level=logging.INFO,
@@ -23,7 +25,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-from .utils import hf_embed
+from graphrag_pipeline.utils import hf_embed
 class GraphRAGPipeline:
     def __init__(self, config: PipelineConfig) -> None:
         self.config = config
@@ -250,8 +252,9 @@ def _read_document(path: str) -> str:
         return p.read_text(encoding="utf-8")
 
 
-async def async_main(config_path: Optional[str], document_paths: list[str]) -> None:
-    config = load_config(config_path)
+async def async_main( document_paths: list[str]) -> None:
+    
+    config = load_config()
     pipeline = GraphRAGPipeline(config)
 
     try:
@@ -287,8 +290,6 @@ def _collect_documents(path: str) -> list[str]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Microsoft GraphRAG Pipeline (Neo4j Edition)")
-    parser.add_argument("--config", type=str, default=None, help="Path to config.yaml")
-
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--document", type=str, help="Path to a single document (.txt or .pdf)")
     group.add_argument("--directory", type=str, help="Path to a directory of documents (processes all .txt and .pdf files)")
@@ -297,7 +298,7 @@ def main() -> None:
 
     path = args.document or args.directory
     document_paths = _collect_documents(path)
-    asyncio.run(async_main(args.config, document_paths))
+    asyncio.run(async_main(document_paths))
 
 
 if __name__ == "__main__":
