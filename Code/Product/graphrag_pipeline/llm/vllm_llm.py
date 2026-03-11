@@ -1,0 +1,82 @@
+from __future__ import annotations
+
+import logging
+import os
+from typing import Optional
+
+from .base import LLMInterface
+
+logger = logging.getLogger(__name__)
+
+
+class VllmLLM(LLMInterface):
+    """LLM provider for self-hosted vLLM servers.
+
+    Uses the OpenAI-compatible API that vLLM exposes.
+    Set VLLM_API_BASE in your environment or .env file, e.g.:
+        VLLM_API_BASE=http://34.89.123.45:8000/v1
+    """
+
+    def __init__(
+        self,
+        model: str = "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
+        temperature: float = 0.0,
+        max_tokens: int = 4096,
+    ) -> None:
+        super().__init__(model=model, temperature=temperature, max_tokens=max_tokens)
+        try:
+            from openai import AsyncOpenAI
+        except ImportError as exc:
+            raise ImportError("Install the 'openai' package: pip install openai") from exc
+
+        api_base = os.getenv("VLLM_API_BASE")
+        if not api_base:
+            raise ValueError(
+                "VLLM_API_BASE environment variable is not set.\n"
+                "Set it to your vLLM server URL, e.g.: VLLM_API_BASE=http://<VM_IP>:8000/v1"
+            )
+
+        # vLLM doesn't require an API key, but the OpenAI client needs one
+        self._client = AsyncOpenAI(
+            api_key="dummy",
+            base_url=api_base,
+            max_retries=0,
+        )
+
+    async def ainvoke(
+        self,
+        prompt: str,
+        system_prompt: Optional[str] = None,
+    ) -> str:
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+
+        import time
+        start_time = time.time()
+
+        async def _call():
+            return await self._client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
+            )
+
+        response = await self._execute_with_retry("vLLM", _call)
+
+        duration_sec = time.time() - start_time
+
+        content = response.choices[0].message.content or ""
+
+        prompt_tokens = 0
+        completion_tokens = 0
+        if hasattr(response, "usage") and response.usage:
+            prompt_tokens = response.usage.prompt_tokens or 0
+            completion_tokens = response.usage.completion_tokens or 0
+
+        self._update_and_log_usage(prompt_tokens, completion_tokens, duration_sec)
+
+        logger.debug("vLLM response (%s tokens): %s...", len(content), content[:200])
+        return content
