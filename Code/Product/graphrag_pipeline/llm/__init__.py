@@ -7,13 +7,14 @@ from .openai_llm import OpenAILLM
 from .groq_llm import GroqLLM
 from .vertex_llm import VertexLLM
 from .ollama_llm import OllamaLLM
+from .vllm_llm import VllmLLM
 
 
 def get_llm(provider: str, **kwargs) -> LLMInterface:
     """Factory function to create an LLM instance.
 
     Args:
-        provider: One of 'openai', 'groq', 'vertex', or 'ollama'.
+        provider: One of 'openai', 'groq', 'vertex', 'ollama', or 'vllm'.
         **kwargs: Forwarded to the LLM constructor (model, temperature, max_tokens).
 
     Returns:
@@ -27,6 +28,7 @@ def get_llm(provider: str, **kwargs) -> LLMInterface:
         "groq": GroqLLM,
         "vertex": VertexLLM,
         "ollama": OllamaLLM,
+        "vllm": VllmLLM,
     }
     cls = providers.get(provider.lower())
     if cls is None:
@@ -34,4 +36,5 @@ def get_llm(provider: str, **kwargs) -> LLMInterface:
     return cls(**kwargs)
 
 
-__all__ = ["LLMInterface", "OpenAILLM", "GroqLLM", "VertexLLM", "OllamaLLM", "get_llm"]
+__all__ = ["LLMInterface", "OpenAILLM", "GroqLLM", "VertexLLM", "OllamaLLM", "VllmLLM", "get_llm"]
+

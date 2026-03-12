@@ -6,10 +6,10 @@ chunking:
   chunk_overlap: 200
 
 llm:
-  provider: "vertex"       # Options: groq, openai, vertex
-  model: "gemini-2.5-flash"
+  provider: "openai"       # Options: groq, openai, vertex
+  model: "gpt-4o-mini"
   temperature: 0.0
-  max_tokens: 32768
+  max_tokens: 8192 
 
 embedding:
   model: "all-MiniLM-L6-v2"
@@ -37,3 +37,13 @@ local_search:
   top_k_entities: 5
   hop_depth: 1
   max_chunks: 10
+
+lazy_search:
+  max_subqueries: 5
+  max_chunks: 10
+  nlp_model: "en_core_web_lg"
+
+lazy_search:
+  max_subqueries: 5
+  max_chunks: 10
+  nlp_model: "en_core_web_lg"

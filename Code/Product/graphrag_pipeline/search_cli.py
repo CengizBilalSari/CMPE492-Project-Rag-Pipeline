@@ -11,12 +11,12 @@ from typing import Optional
 
 import neo4j
 
-# Ensure the package is findable
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from graphrag_pipeline.config import load_config
 from graphrag_pipeline.llm import get_llm
-from graphrag_pipeline.retrievers import GlobalRetriever, LocalRetriever, PPRRerankerRetriever
+from graphrag_pipeline.retrievers import GlobalRetriever, LocalRetriever, PPRRerankerRetriever,LazyRetriever
+
 from graphrag_pipeline.utils import hf_embed
 
 logging.basicConfig(
@@ -25,9 +25,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger("graphrag_search")
 
-async def run_search(query: str, config_path: Optional[str] = None, mode: str = "global"):
-    logger.info("[1/5] Loading config from: %s", config_path or "default location")
-    config = load_config(config_path)
+async def run_search(query: str, mode: str = "global"):
+    logger.info("[1/5] Loading config from: %s",  "default location")
+    config = load_config()
     logger.info("      Config loaded. LLM provider=%s  model=%s  temperature=%s  max_tokens=%s",
                 config.llm.provider, config.llm.model,
                 config.llm.temperature, config.llm.max_tokens)
@@ -41,10 +41,14 @@ async def run_search(query: str, config_path: Optional[str] = None, mode: str = 
                     config.local_search.top_k_entities,
                     config.local_search.hop_depth,
                     config.local_search.max_chunks)
-    else:
+    elif mode == "ppr":
         logger.info("      PPR Reranker search: top_k_entities=%s  max_chunks=%s",
                     config.local_search.top_k_entities,
                     config.local_search.max_chunks)
+    elif mode == "lazy":
+        logger.info("      Lazy search: max_subqueries=%s  max_chunks=%s",
+                    config.lazy_search.max_subqueries if hasattr(config, "lazy_search") else 5,
+                    config.lazy_search.max_chunks if hasattr(config, "lazy_search") else 10)
 
     logger.info("[2/5] Initialising LLM (%s / %s)...", config.llm.provider, config.llm.model)
     llm = get_llm(
@@ -90,7 +94,7 @@ async def run_search(query: str, config_path: Optional[str] = None, mode: str = 
                 max_chunks=config.local_search.max_chunks,
                 database=config.neo4j.database,
             )
-        else:
+        elif mode == "ppr":
             async def embed_fn(texts: list[str]) -> list[list[float]]:
                 return await hf_embed(texts, model_name=config.embedding.model, show_progress=False)
 
@@ -100,6 +104,16 @@ async def run_search(query: str, config_path: Optional[str] = None, mode: str = 
                 embedding_fn=embed_fn,
                 top_k_entities=config.local_search.top_k_entities,
                 max_chunks=config.local_search.max_chunks,
+        elif mode == "lazy":
+            async def embed_fn(texts: list[str]) -> list[list[float]]:
+                return await hf_embed(texts, model_name=config.embedding.model, show_progress=False)
+                
+            retriever = LazyRetriever(
+                driver=driver,
+                llm=llm,
+                embedding_fn=embed_fn,
+                max_subqueries=config.lazy_search.max_subqueries if hasattr(config, "lazy_search") else 5,
+                max_chunks=config.lazy_search.max_chunks if hasattr(config, "lazy_search") else 10,
                 database=config.neo4j.database,
             )
 
@@ -125,13 +139,14 @@ def main():
 
     parser = argparse.ArgumentParser(description="GraphRAG Search CLI")
     parser.add_argument("query", type=str, help="Search query")
-    parser.add_argument("--mode", type=str, choices=["global", "local", "ppr"], default="global", 
-                        help="Search mode: global (thematic), local (entity-focused), or ppr (graph-reranked)")
+    parser.add_argument("--mode", type=str, choices=["global", "local", "ppr","lazy"], default="global", 
+                        help="Search mode: global (thematic), local (entity-focused), lazy, or ppr (graph-reranked)")
     parser.add_argument("--config", type=str, default=None, help="Path to config.yaml")
+    
 
     args = parser.parse_args()
 
-    asyncio.run(run_search(args.query, args.config, args.mode))
+    asyncio.run(run_search(args.query, args.mode))
 
 if __name__ == "__main__":
     main()

@@ -67,6 +67,16 @@ class LocalSearchConfig(BaseModel):
     max_chunks: int = 10
     max_concurrency: int = 1
 
+class LazySearchConfig(BaseModel):
+    max_subqueries: int = 5
+    max_chunks: int = 10
+    nlp_model: str = "en_core_web_lg" # Options: en_core_web_sm, en_core_web_md, en_core_web_lg, en_core_web_trf
+
+class LazySearchConfig(BaseModel):
+    max_subqueries: int = 5
+    max_chunks: int = 10
+    nlp_model: str = "en_core_web_lg" # Options: en_core_web_sm, en_core_web_md, en_core_web_lg, en_core_web_trf
+
 
 class PipelineConfig(BaseModel):
     chunking: ChunkingConfig = ChunkingConfig()
@@ -78,6 +88,8 @@ class PipelineConfig(BaseModel):
     community_detection: CommunityDetectionConfig = CommunityDetectionConfig()
     global_search: GlobalSearchConfig = GlobalSearchConfig()
     local_search: LocalSearchConfig = LocalSearchConfig()
+    lazy_search: LazySearchConfig = LazySearchConfig()
+    lazy_search: LazySearchConfig = LazySearchConfig()
 
 
 
