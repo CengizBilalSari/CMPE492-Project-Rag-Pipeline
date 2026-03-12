@@ -81,12 +81,16 @@ class PipelineConfig(BaseModel):
 
 
 
-def load_config() -> PipelineConfig:
-    path = str(_PROJECT_ROOT / "config.yaml")
+def load_config(config_path: Optional[str] = None) -> PipelineConfig:
+    if config_path is None:
+        path = str(_PROJECT_ROOT / "config.yaml")
+    else:
+        path = config_path
+        
     data: dict[str, Any] = {}
-    config_path = Path(path)
-    if config_path.exists():
-        with open(config_path, "r", encoding="utf-8") as fh:
+    path_obj = Path(path)
+    if path_obj.exists():
+        with open(path_obj, "r", encoding="utf-8") as fh:
             data = yaml.safe_load(fh) or {}
     return PipelineConfig(**data)
 

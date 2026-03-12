@@ -6,13 +6,17 @@ import argparse
 import asyncio
 import logging
 import sys
+from pathlib import Path
 from typing import Optional
 
 import neo4j
 
+# Ensure the package is findable
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from graphrag_pipeline.config import load_config
 from graphrag_pipeline.llm import get_llm
-from graphrag_pipeline.retrievers import GlobalRetriever, LocalRetriever
+from graphrag_pipeline.retrievers import GlobalRetriever, LocalRetriever, PPRRerankerRetriever
 from graphrag_pipeline.utils import hf_embed
 
 logging.basicConfig(
@@ -32,10 +36,14 @@ async def run_search(query: str, config_path: Optional[str] = None, mode: str = 
                     config.global_search.top_k,
                     config.global_search.max_concurrency,
                     config.global_search.max_token_per_batch)
-    else:
+    elif mode == "local":
         logger.info("      Local search: top_k_entities=%s  hop_depth=%s  max_chunks=%s",
                     config.local_search.top_k_entities,
                     config.local_search.hop_depth,
+                    config.local_search.max_chunks)
+    else:
+        logger.info("      PPR Reranker search: top_k_entities=%s  max_chunks=%s",
+                    config.local_search.top_k_entities,
                     config.local_search.max_chunks)
 
     logger.info("[2/5] Initialising LLM (%s / %s)...", config.llm.provider, config.llm.model)
@@ -69,7 +77,7 @@ async def run_search(query: str, config_path: Optional[str] = None, mode: str = 
                 top_k=config.global_search.top_k,
                 database=config.neo4j.database,
             )
-        else:
+        elif mode == "local":
             async def embed_fn(texts: list[str]) -> list[list[float]]:
                 return await hf_embed(texts, model_name=config.embedding.model, show_progress=False)
                 
@@ -79,6 +87,18 @@ async def run_search(query: str, config_path: Optional[str] = None, mode: str = 
                 embedding_fn=embed_fn,
                 top_k_entities=config.local_search.top_k_entities,
                 hop_depth=config.local_search.hop_depth,
+                max_chunks=config.local_search.max_chunks,
+                database=config.neo4j.database,
+            )
+        else:
+            async def embed_fn(texts: list[str]) -> list[list[float]]:
+                return await hf_embed(texts, model_name=config.embedding.model, show_progress=False)
+
+            retriever = PPRRerankerRetriever(
+                driver=driver,
+                llm=llm,
+                embedding_fn=embed_fn,
+                top_k_entities=config.local_search.top_k_entities,
                 max_chunks=config.local_search.max_chunks,
                 database=config.neo4j.database,
             )
@@ -105,8 +125,8 @@ def main():
 
     parser = argparse.ArgumentParser(description="GraphRAG Search CLI")
     parser.add_argument("query", type=str, help="Search query")
-    parser.add_argument("--mode", type=str, choices=["global", "local"], default="global", 
-                        help="Search mode: global (thematic) or local (entity-focused)")
+    parser.add_argument("--mode", type=str, choices=["global", "local", "ppr"], default="global", 
+                        help="Search mode: global (thematic), local (entity-focused), or ppr (graph-reranked)")
     parser.add_argument("--config", type=str, default=None, help="Path to config.yaml")
 
     args = parser.parse_args()
