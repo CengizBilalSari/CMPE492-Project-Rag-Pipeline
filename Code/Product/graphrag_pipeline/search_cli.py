@@ -15,7 +15,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from graphrag_pipeline.config import load_config
 from graphrag_pipeline.llm import get_llm
-from graphrag_pipeline.retrievers import GlobalRetriever, LocalRetriever, LazyRetriever
+from graphrag_pipeline.retrievers import GlobalRetriever, LocalRetriever, PPRRerankerRetriever,LazyRetriever
+
 from graphrag_pipeline.utils import hf_embed
 
 logging.basicConfig(
@@ -39,6 +40,10 @@ async def run_search(query: str, mode: str = "global"):
         logger.info("      Local search: top_k_entities=%s  hop_depth=%s  max_chunks=%s",
                     config.local_search.top_k_entities,
                     config.local_search.hop_depth,
+                    config.local_search.max_chunks)
+    elif mode == "ppr":
+        logger.info("      PPR Reranker search: top_k_entities=%s  max_chunks=%s",
+                    config.local_search.top_k_entities,
                     config.local_search.max_chunks)
     elif mode == "lazy":
         logger.info("      Lazy search: max_subqueries=%s  max_chunks=%s",
@@ -89,6 +94,16 @@ async def run_search(query: str, mode: str = "global"):
                 max_chunks=config.local_search.max_chunks,
                 database=config.neo4j.database,
             )
+        elif mode == "ppr":
+            async def embed_fn(texts: list[str]) -> list[list[float]]:
+                return await hf_embed(texts, model_name=config.embedding.model, show_progress=False)
+
+            retriever = PPRRerankerRetriever(
+                driver=driver,
+                llm=llm,
+                embedding_fn=embed_fn,
+                top_k_entities=config.local_search.top_k_entities,
+                max_chunks=config.local_search.max_chunks,
         elif mode == "lazy":
             async def embed_fn(texts: list[str]) -> list[list[float]]:
                 return await hf_embed(texts, model_name=config.embedding.model, show_progress=False)
@@ -124,8 +139,10 @@ def main():
 
     parser = argparse.ArgumentParser(description="GraphRAG Search CLI")
     parser.add_argument("query", type=str, help="Search query")
-    parser.add_argument("--mode", type=str, choices=["global", "local", "lazy"], default="global", 
-                        help="Search mode: global, local, or lazy")
+    parser.add_argument("--mode", type=str, choices=["global", "local", "ppr","lazy"], default="global", 
+                        help="Search mode: global (thematic), local (entity-focused), lazy, or ppr (graph-reranked)")
+    parser.add_argument("--config", type=str, default=None, help="Path to config.yaml")
+    
 
     args = parser.parse_args()
 
