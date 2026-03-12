@@ -16,7 +16,7 @@ FUNCTION_REGION="${REGION}"
 echo "============================================="
 echo "  Budget Protection Setup"
 echo "  Budget: ${BUDGET_AMOUNT} TRY"
-echo "  Alert at: ${BUDGET_THRESHOLD} ($(echo "${BUDGET_THRESHOLD} * 100" | bc)%)"
+echo "  Alert at: ${BUDGET_THRESHOLD} (e.g., 0.8 = 80%)"
 echo "============================================="
 
 # --- Enable APIs ---
@@ -56,17 +56,28 @@ PROJECT_NUMBER=$(gcloud projects describe "${PROJECT_ID}" --format="value(projec
 COMPUTE_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
 PUBSUB_SA="service-${PROJECT_NUMBER}@gcp-sa-pubsub.iam.gserviceaccount.com"
 
+# Force creation of Pub/Sub service identity
+echo "    [DEBUG] Forcing creation of pubsub service account..."
+gcloud beta services identity create --service=pubsub.googleapis.com --project="${PROJECT_ID}" || true
+
+echo "    [DEBUG] Adding builder role to ${COMPUTE_SA} on project ${PROJECT_ID}..."
 gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
     --member="serviceAccount:${COMPUTE_SA}" \
-    --role="roles/cloudbuild.builds.builder" \
-    --quiet >/dev/null 2>&1
+    --role="roles/cloudbuild.builds.builder"
 
+echo "    [DEBUG] Fetching Billing Account ID for project ${PROJECT_ID}..."
 BILLING_ACCOUNT_ID="${BILLING_ACCOUNT_ID:-$(gcloud billing projects describe "${PROJECT_ID}" --format="value(billingAccountName)" 2>/dev/null | sed 's|billingAccounts/||')}"
 
+if [ -z "${BILLING_ACCOUNT_ID}" ]; then
+    echo "    [ERROR] Could not fetch Billing Account ID. Does this project have a billing account linked?"
+    exit 1
+fi
+
+echo "    [DEBUG] Binding billing.admin to ${COMPUTE_SA} on Billing Account: ${BILLING_ACCOUNT_ID}..."
+# Note: The user running this must have Billing Account Administrator permissions
 gcloud billing accounts add-iam-policy-binding "${BILLING_ACCOUNT_ID}" \
     --member="serviceAccount:${COMPUTE_SA}" \
-    --role="roles/billing.admin" \
-    --quiet >/dev/null 2>&1
+    --role="roles/billing.admin"
 
 echo "    IAM permissions set."
 
@@ -129,7 +140,7 @@ echo "  ✅ Budget protection active!"
 echo "============================================="
 echo "  Topic:    ${PUBSUB_TOPIC}"
 echo "  Function: ${FUNCTION_NAME}"
-echo "  Budget:   ${BUDGET_AMOUNT} TRY (alert at $(echo "${BUDGET_THRESHOLD} * 100" | bc)%)"
+echo "  Budget:   ${BUDGET_AMOUNT} TRY (alert at ${BUDGET_THRESHOLD})"
 echo ""
 echo "  When spending exceeds the budget, billing will be"
 echo "  automatically disabled on this project."

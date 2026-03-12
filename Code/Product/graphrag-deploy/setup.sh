@@ -37,8 +37,8 @@ APIS=("compute.googleapis.com")
 for api in "${APIS[@]}"; do
     STATUS=$(gcloud services list --project="${PROJECT_ID}" --filter="name:${api}" --format="value(name)" 2>/dev/null)
     if [ -z "${STATUS}" ]; then
-        echo "    Enabling ${api}..."
-        gcloud services enable "${api}" --project="${PROJECT_ID}" --quiet
+        echo "    [DEBUG] Enabling ${api}..."
+        gcloud services enable "${api}" --project="${PROJECT_ID}"
     else
         echo "    ${api} — already enabled"
     fi

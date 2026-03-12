@@ -45,8 +45,7 @@ else
         --project="${PROJECT_ID}" \
         --allow="tcp:${VLLM_PORT}" \
         --target-tags="vllm-server" \
-        --description="Allow access to vLLM server" \
-        --quiet
+        --description="Allow access to vLLM server"
     echo "    Firewall rule created."
 fi
 
@@ -70,8 +69,7 @@ if [ -n "${EXISTING_VM}" ]; then
         echo "    VM is stopped. Starting it..."
         gcloud compute instances start "${VM_NAME}" \
             --project="${PROJECT_ID}" \
-            --zone="${ZONE}" \
-            --quiet
+            --zone="${ZONE}"
         echo "    VM started."
     else
         echo "    VM status: ${VM_STATUS}"
@@ -90,8 +88,7 @@ else
         --tags="vllm-server" \
         --metadata="hf-token=${HF_TOKEN},vllm-model=${MODEL},max-model-len=${MAX_MODEL_LEN},gpu-mem-util=${GPU_MEMORY_UTILIZATION},dtype=${DTYPE},vllm-port=${VLLM_PORT},install-nvidia-driver=True" \
         --metadata-from-file="startup-script=${SCRIPT_DIR}/startup.sh" \
-        --scopes="default" \
-        --quiet
+        --scopes="default"
 
     echo "    VM created."
 fi

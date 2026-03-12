@@ -25,10 +25,10 @@ usage() {
 
 cmd_stop() {
     echo "Stopping VM ${VM_NAME}..."
+    echo "    [DEBUG] Sending stop command to VM ${VM_NAME} in zone ${ZONE}..."
     gcloud compute instances stop "${VM_NAME}" \
         --project="${PROJECT_ID}" \
-        --zone="${ZONE}" \
-        --quiet
+        --zone="${ZONE}"
 
     echo ""
     echo "✓ VM stopped. GPU charges have stopped."
@@ -40,10 +40,10 @@ cmd_stop() {
 
 cmd_start() {
     echo "Starting VM ${VM_NAME}..."
+    echo "    [DEBUG] Sending start command to VM ${VM_NAME} in zone ${ZONE}..."
     gcloud compute instances start "${VM_NAME}" \
         --project="${PROJECT_ID}" \
-        --zone="${ZONE}" \
-        --quiet
+        --zone="${ZONE}"
 
     EXTERNAL_IP=$(gcloud compute instances describe "${VM_NAME}" \
         --project="${PROJECT_ID}" \
@@ -67,18 +67,18 @@ cmd_destroy() {
     # Delete VM
     echo ""
     echo "Deleting VM ${VM_NAME}..."
+    echo "    [DEBUG] Deleting VM ${VM_NAME} along with all attached disks..."
     gcloud compute instances delete "${VM_NAME}" \
         --project="${PROJECT_ID}" \
         --zone="${ZONE}" \
-        --delete-disks=all \
-        --quiet 2>/dev/null || echo "  VM not found or already deleted."
+        --delete-disks=all || echo "  VM not found or already deleted."
 
     # Delete firewall rule
     echo ""
     echo "Deleting firewall rule ${FIREWALL_RULE}..."
+    echo "    [DEBUG] Deleting firewall rule ${FIREWALL_RULE}..."
     gcloud compute firewall-rules delete "${FIREWALL_RULE}" \
-        --project="${PROJECT_ID}" \
-        --quiet 2>/dev/null || echo "  Firewall rule not found or already deleted."
+        --project="${PROJECT_ID}" || echo "  Firewall rule not found or already deleted."
 
     # Check for orphaned disks
     echo ""
@@ -90,11 +90,10 @@ cmd_destroy() {
 
     if [ -n "${ORPHAN_DISKS}" ]; then
         echo "${ORPHAN_DISKS}" | while read -r disk; do
-            echo "  Deleting orphaned disk: ${disk}"
+            echo "    [DEBUG] Deleting orphaned disk: ${disk}"
             gcloud compute disks delete "${disk}" \
                 --project="${PROJECT_ID}" \
-                --zone="${ZONE}" \
-                --quiet 2>/dev/null || true
+                --zone="${ZONE}" || true
         done
     else
         echo "  No orphaned disks."
