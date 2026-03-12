@@ -14,7 +14,7 @@ source "${SCRIPT_DIR}/config.env"
 PROJECT_ID="${PROJECT_ID:-$(gcloud config get-value project 2>/dev/null)}"
 
 # Path to pipeline config
-PIPELINE_DIR="${SCRIPT_DIR}/../Code/Product/graphrag_pipeline"
+PIPELINE_DIR="${SCRIPT_DIR}/../graphrag_pipeline"
 CONFIG_FILE="${PIPELINE_DIR}/config.yaml"
 ENV_FILE="${PIPELINE_DIR}/.env"
 

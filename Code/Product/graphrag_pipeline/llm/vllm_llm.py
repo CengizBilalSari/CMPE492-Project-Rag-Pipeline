@@ -19,11 +19,14 @@ class VllmLLM(LLMInterface):
 
     def __init__(
         self,
-        model: str = "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
+        model: str = "Qwen/Qwen3-8B", # Updated default model to Qwen3
         temperature: float = 0.0,
         max_tokens: int = 4096,
+        enable_thinking: bool = False, # <-- ADDED: Toggle for Qwen reasoning
     ) -> None:
         super().__init__(model=model, temperature=temperature, max_tokens=max_tokens)
+        self.enable_thinking = enable_thinking # Store the toggle state
+        
         try:
             from openai import AsyncOpenAI
         except ImportError as exc:
@@ -57,12 +60,19 @@ class VllmLLM(LLMInterface):
         start_time = time.time()
 
         async def _call():
-            return await self._client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
-            )
+            # Build the base arguments
+            call_kwargs = {
+                "model": self.model,
+                "messages": messages,
+                "temperature": self.temperature,
+                "max_tokens": self.max_tokens,
+            }
+            
+            # <-- ADDED: Inject the extra_body to disable thinking if needed
+            if not self.enable_thinking:
+                call_kwargs["extra_body"] = {"enable_thinking": False}
+
+            return await self._client.chat.completions.create(**call_kwargs)
 
         response = await self._execute_with_retry("vLLM", _call)
 

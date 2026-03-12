@@ -76,7 +76,7 @@ if curl -sf --connect-timeout 5 "http://${EXTERNAL_IP}:${VLLM_PORT}/health" >/de
         -d "{
             \"model\": \"${MODEL}\",
             \"messages\": [{\"role\": \"user\", \"content\": \"Say hello in one sentence.\"}],
-            \"max_tokens\": 50,
+            \"max_tokens\": 500,
             \"temperature\": 0
         }" 2>/dev/null || echo "")
 
@@ -86,7 +86,7 @@ if curl -sf --connect-timeout 5 "http://${EXTERNAL_IP}:${VLLM_PORT}/health" >/de
 import sys, json
 d = json.load(sys.stdin)
 content = d['choices'][0]['message']['content']
-print(f'    \"{content[:200]}\"')
+print(f'    \"{content}\"')
 " 2>/dev/null || echo "    (could not parse response)"
     else
         echo "    ✗ No response from chat endpoint"

@@ -71,14 +71,16 @@ cmd_destroy() {
     gcloud compute instances delete "${VM_NAME}" \
         --project="${PROJECT_ID}" \
         --zone="${ZONE}" \
-        --delete-disks=all || echo "  VM not found or already deleted."
+        --delete-disks=all \
+        --quiet || echo "  VM not found or already deleted."
 
     # Delete firewall rule
     echo ""
     echo "Deleting firewall rule ${FIREWALL_RULE}..."
     echo "    [DEBUG] Deleting firewall rule ${FIREWALL_RULE}..."
     gcloud compute firewall-rules delete "${FIREWALL_RULE}" \
-        --project="${PROJECT_ID}" || echo "  Firewall rule not found or already deleted."
+        --project="${PROJECT_ID}" \
+        --quiet || echo "  Firewall rule not found or already deleted."
 
     # Check for orphaned disks
     echo ""
@@ -93,7 +95,8 @@ cmd_destroy() {
             echo "    [DEBUG] Deleting orphaned disk: ${disk}"
             gcloud compute disks delete "${disk}" \
                 --project="${PROJECT_ID}" \
-                --zone="${ZONE}" || true
+                --zone="${ZONE}" \
+                --quiet || true
         done
     else
         echo "  No orphaned disks."
