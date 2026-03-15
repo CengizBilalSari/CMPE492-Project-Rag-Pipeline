@@ -37,7 +37,38 @@ class CommunitySummarizer:
         self.max_concurrency = max_concurrency
         self.database = database
         self.completed_summaries: int = 0
-        self.total_communities: int = 0
+        self.total_communities = 0
+
+    def _get_unsummarized_communities(self) -> dict[int, list[str]]:
+        """Return a dict of {comm_id: [entity_names]} for communities that lack a summary."""
+        def _run_query():
+            records, _, _ = self.driver.execute_query(
+                """
+                MATCH (com:Community)
+                WHERE NOT (com)-[:HAS_SUMMARY]->(:CommunitySummary)
+                RETURN com.id AS id
+                """,
+                database_=self.database,
+            )
+            return [r["id"] for r in records]
+
+        unsummarized_ids = _run_query()
+        if not unsummarized_ids:
+            return {}
+
+        def _fetch_entities(comm_ids):
+            records, _, _ = self.driver.execute_query(
+                """
+                MATCH (e:Entity)-[:IN_COMMUNITY]->(com:Community)
+                WHERE com.id IN $ids
+                RETURN com.id AS id, collect(e.name) AS names
+                """,
+                ids=comm_ids,
+                database_=self.database,
+            )
+            return {int(r["id"]): r["names"] for r in records}
+
+        return _fetch_entities(unsummarized_ids)
 
     async def summarize(self, communities: dict[int, list[str]]) -> dict[int, str]:
         self.total_communities = len(communities)

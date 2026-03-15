@@ -1,5 +1,4 @@
 import logging
-import spacy
 from typing import List
 from itertools import combinations
 import asyncio
@@ -10,6 +9,7 @@ logger = logging.getLogger(__name__)
 
 class LazyConceptExtractor:
     def __init__(self, nlp_model: str = "en_core_web_lg", max_concurrency: int = 5):
+        import spacy
         self.max_concurrency = max_concurrency
         try:
             self.nlp = spacy.load(nlp_model)
