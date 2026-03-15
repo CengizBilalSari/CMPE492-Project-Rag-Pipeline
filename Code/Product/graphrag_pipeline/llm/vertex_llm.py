@@ -8,9 +8,6 @@ import logging
 import os
 from typing import Optional
 
-from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_google_vertexai import ChatVertexAI
-
 from .base import LLMInterface
 
 logger = logging.getLogger(__name__)
@@ -24,6 +21,11 @@ class VertexLLM(LLMInterface):
         max_tokens: int = 8192,
     ) -> None:
         super().__init__(model=model, temperature=temperature, max_tokens=max_tokens)
+        
+        try:
+            from langchain_google_vertexai import ChatVertexAI
+        except ImportError as exc:
+            raise ImportError("Install the 'langchain-google-vertexai' package: pip install langchain-google-vertexai") from exc
 
         project_id = os.getenv("GCP_PROJECT_ID")
         location = os.getenv("GCP_LOCATION", "global")
@@ -48,6 +50,7 @@ class VertexLLM(LLMInterface):
         prompt: str,
         system_prompt: Optional[str] = None,
     ) -> str:
+        from langchain_core.messages import HumanMessage, SystemMessage
         messages = []
         if system_prompt:
             messages.append(SystemMessage(content=system_prompt))

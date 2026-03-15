@@ -6,7 +6,6 @@ import logging
 import re
 from typing import Any, List, Dict
 
-import tiktoken
 from ..llm.base import LLMInterface
 
 logger = logging.getLogger(__name__)
@@ -67,6 +66,7 @@ class GlobalRetriever:
         self.max_concurrency = max_concurrency
         self.top_k = top_k
         self.database = database
+        import tiktoken
         self._encoder = tiktoken.get_encoding("cl100k_base")
 
     async def search(self, query: str) -> str:
