@@ -84,3 +84,20 @@ To check if the server is running or to troubleshoot the download progress, use 
 -   `status.sh`: Connects via SSH and tails `~/vllm_server.log`.
 -   `vllm_test.py`: A simple script to verify the API connection.
 -   `requirements.txt`: Contains local dependencies (lightning, python-dotenv, etc.).
+
+
+
+
+
+
+## Alternative: Docker Compose
+
+- Instead of doing the above things on your terminal (Linux/WSL/Mac distribution problems etc), activate your docker desktop and run `docker-compose up -d --build`
+- Run this to enter the container. You can use this after you generate the container first time.
+```bash
+
+docker compose exec lightning-ai bash
+```
+
+- At first generation, it might takes too much time since requirements.txt include lots of heavy libraries. 
+- Run the scripts and do the necessary steps one by one as described at above.(setup might need some human interaction to select user team etc. from the terminal) 

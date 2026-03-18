@@ -2,7 +2,7 @@ import openai
 import os
 
 client = openai.OpenAI(
-    base_url="https://8000-01kktj2tz5cbeqf9chb77mn3qc.cloudspaces.litng.ai/v1", 
+    base_url="https://8000-01kkztg561nh7dhn0pf41e2rpa.cloudspaces.litng.ai/v1", 
     api_key="not-needed"
 )
 
@@ -21,10 +21,9 @@ def test_model():
        }
             ],
             temperature=0.7,
-            max_tokens=100
+            max_tokens=2048
         )
         
-        # 3. Yanıtı Yazdır
         answer = response.choices[0].message.content
         print("\n✅ Answer from vLLM")
         print("-" * 30)
