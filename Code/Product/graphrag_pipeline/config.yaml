@@ -6,10 +6,10 @@ chunking:
   chunk_overlap: 200
 
 llm:
-  provider: "openai"       # Options: groq, openai, vertex
-  model: "gpt-4o-mini"
+  provider: "vllm"       # Options: groq, openai, vertex
+  model: "meta-llama/Llama-3.1-8B-Instruct"
   temperature: 0.0
-  max_tokens: 8192 
+  max_tokens: 4096 
 
 embedding:
   model: "all-MiniLM-L6-v2"
@@ -19,7 +19,7 @@ neo4j:
   # URI, user, password loaded from .env
 
 extraction:
-  max_concurrency: 4   # Keep low for 429 error
+  max_concurrency: 1  # Keep low for 429 error
 
 entity_resolution:
   enabled: true
@@ -43,7 +43,3 @@ lazy_search:
   max_chunks: 10
   nlp_model: "en_core_web_lg"
 
-lazy_search:
-  max_subqueries: 5
-  max_chunks: 10
-  nlp_model: "en_core_web_lg"
