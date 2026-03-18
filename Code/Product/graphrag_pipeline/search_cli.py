@@ -104,6 +104,8 @@ async def run_search(query: str, mode: str = "global"):
                 embedding_fn=embed_fn,
                 top_k_entities=config.local_search.top_k_entities,
                 max_chunks=config.local_search.max_chunks,
+                database=config.neo4j.database,
+            )
         elif mode == "lazy":
             async def embed_fn(texts: list[str]) -> list[list[float]]:
                 return await hf_embed(texts, model_name=config.embedding.model, show_progress=False)

@@ -43,7 +43,3 @@ lazy_search:
   max_chunks: 10
   nlp_model: "en_core_web_lg"
 
-lazy_search:
-  max_subqueries: 5
-  max_chunks: 10
-  nlp_model: "en_core_web_lg"
