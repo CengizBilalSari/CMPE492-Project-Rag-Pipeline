@@ -229,14 +229,6 @@ class GraphRAGPipeline:
         self.step_times["6. Summarize Communities"] = time.time() - t0
         self.writer.update_document_status(doc_id, "COMPLETED")
         
-        total_time = time.time() - total_start_time
-
-        logger.info("=" * 60)
-        logger.info("GraphRAG Pipeline COMPLETE")
-        logger.info("=" * 60)
-        
-        self._print_pipeline_summary(total_time)
-        
     def _print_pipeline_summary(self, total_time: float) -> None:
         with self._driver.session(database=self.config.neo4j.database) as session:
             doc_count = session.run("MATCH (d:Document) RETURN count(d) as c").single()["c"]

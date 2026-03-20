@@ -34,7 +34,7 @@ class PipelineConfig:
 
 @dataclass
 class EvalConfig:
-    comet_workspace: str = "cmpe492-team"
+    comet_workspace: str = "burak-korkmaz"
     comet_project: str = "cmpe492-rag-pipeline-evaluation-tool"
     comet_experiment_key: Optional[str] = None          # key of the QA-generation experiment
     rag_endpoint_url: Optional[str] = None              # None = mock mode (LLM answers)
@@ -43,3 +43,4 @@ class EvalConfig:
     llm_provider: str = "openai"                        # openai | groq
     llm_model: str = "gpt-4o"
     output_csv_path: str = "evaluation_results.csv"
+    graphrag_dir: Optional[str] = None                  # path to graphrag_pipeline parent dir

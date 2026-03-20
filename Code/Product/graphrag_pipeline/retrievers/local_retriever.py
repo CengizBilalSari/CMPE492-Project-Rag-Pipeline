@@ -156,6 +156,7 @@ class LocalRetriever:
         
         chunks = []
         for i, r in enumerate(records, 1):
-            chunks.append(f"--- Chunk {i} ---\n{r['text']}")
+            text = (r["text"] or "").replace("\x00", "")
+            chunks.append(f"--- Chunk {i} ---\n{text}")
             
         return "\n\n".join(chunks)

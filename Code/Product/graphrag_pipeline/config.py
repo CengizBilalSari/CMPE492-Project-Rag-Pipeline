@@ -59,6 +59,7 @@ class GlobalSearchConfig(BaseModel):
     max_token_per_batch: int = 2000
     max_concurrency: int = 5
     top_k: int = 10
+    top_communities: int = 20
 
 
 class LocalSearchConfig(BaseModel):
@@ -66,11 +67,6 @@ class LocalSearchConfig(BaseModel):
     hop_depth: int = 1
     max_chunks: int = 10
     max_concurrency: int = 1
-
-class LazySearchConfig(BaseModel):
-    max_subqueries: int = 5
-    max_chunks: int = 10
-    nlp_model: str = "en_core_web_lg" # Options: en_core_web_sm, en_core_web_md, en_core_web_lg, en_core_web_trf
 
 class LazySearchConfig(BaseModel):
     max_subqueries: int = 5
@@ -88,7 +84,6 @@ class PipelineConfig(BaseModel):
     community_detection: CommunityDetectionConfig = CommunityDetectionConfig()
     global_search: GlobalSearchConfig = GlobalSearchConfig()
     local_search: LocalSearchConfig = LocalSearchConfig()
-    lazy_search: LazySearchConfig = LazySearchConfig()
     lazy_search: LazySearchConfig = LazySearchConfig()
 
 

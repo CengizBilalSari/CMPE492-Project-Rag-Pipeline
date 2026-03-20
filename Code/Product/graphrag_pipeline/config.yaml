@@ -2,12 +2,12 @@
 
 chunking:
   strategy: "recursive"  # Options: sentence, token, character, recursive, semantic, propositional
-  chunk_size: 1000
+  chunk_size: 2000
   chunk_overlap: 200
 
 llm:
-  provider: "vllm"       # Options: groq, openai, vertex
-  model: "meta-llama/Llama-3.1-8B-Instruct"
+  provider: "openai"       # Options: groq, openai, vertex
+  model: "gpt-4o-mini"
   temperature: 0.0
   max_tokens: 4096 
 
@@ -19,7 +19,7 @@ neo4j:
   # URI, user, password loaded from .env
 
 extraction:
-  max_concurrency: 1  # Keep low for 429 error
+  max_concurrency: 5  # Keep low for 429 error
 
 entity_resolution:
   enabled: true
@@ -32,6 +32,12 @@ entity_resolution:
 community_detection:
   algorithm: "louvain"   # Options: louvain, leiden (requires Neo4j GDS)
   resolution: 1.0
+
+global_search:
+  max_token_per_batch: 8000
+  max_concurrency: 1
+  top_k: 20
+  top_communities: 30
 
 local_search:
   top_k_entities: 5
