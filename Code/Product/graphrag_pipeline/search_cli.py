@@ -73,6 +73,8 @@ async def run_search(query: str, mode: str = "global"):
 
     try:
         if mode == "global":
+            async def embed_fn_global(texts: list[str]) -> list[list[float]]:
+                return await hf_embed(texts, model_name=config.embedding.model, show_progress=False)
             retriever = GlobalRetriever(
                 driver=driver,
                 llm=llm,
@@ -80,6 +82,8 @@ async def run_search(query: str, mode: str = "global"):
                 max_concurrency=config.global_search.max_concurrency,
                 top_k=config.global_search.top_k,
                 database=config.neo4j.database,
+                embedding_fn=embed_fn_global,
+                top_communities=config.global_search.top_communities,
             )
         elif mode == "local":
             async def embed_fn(texts: list[str]) -> list[list[float]]:

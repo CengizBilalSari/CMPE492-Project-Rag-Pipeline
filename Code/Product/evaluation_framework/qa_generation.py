@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
 
 def main() -> None:
-    WORKSPACE = "cmpe492-team"
+    WORKSPACE = "burak-korkmaz"
     PROJECT = "cmpe492-rag-pipeline-evaluation-tool"
 
     config = PipelineConfig(
