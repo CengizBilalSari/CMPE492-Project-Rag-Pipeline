@@ -4,6 +4,7 @@
 #
 # Usage:
 #   bash connect-graphrag.sh             Point pipeline at vLLM
+#   bash connect-graphrag.sh --api-base http://<host>:8000/v1
 #   bash connect-graphrag.sh --revert    Revert to original provider
 # =============================================================================
 set -euo pipefail
@@ -24,6 +25,26 @@ if [ ! -f "${CONFIG_FILE}" ]; then
 fi
 
 ACTION="${1:-}"
+
+VLLM_API_BASE_OVERRIDE=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --api-base)
+            VLLM_API_BASE_OVERRIDE="${2:-}"
+            shift 2
+            ;;
+        --revert|--use-openai)
+            ACTION="--revert"
+            shift
+            ;;
+        *)
+            echo "Unknown argument: $1"
+            echo "Usage: bash connect-graphrag.sh [--api-base <url>] [--revert|--use-openai]"
+            exit 1
+            ;;
+    esac
+done
 
 if [ "${ACTION}" = "--revert" ]; then
     # --- Revert to original ---
@@ -47,18 +68,24 @@ PYEOF
 
 else
     # --- Connect to vLLM ---
-    EXTERNAL_IP=$(gcloud compute instances describe "${VM_NAME}" \
-        --project="${PROJECT_ID}" \
-        --zone="${ZONE}" \
-        --format="value(networkInterfaces[0].accessConfigs[0].natIP)" 2>/dev/null || true)
+    if [ -n "${VLLM_API_BASE_OVERRIDE}" ]; then
+        VLLM_API_BASE="${VLLM_API_BASE_OVERRIDE}"
+    else
+        EXTERNAL_IP=$(gcloud compute instances describe "${VM_NAME}" \
+            --project="${PROJECT_ID}" \
+            --zone="${ZONE}" \
+            --format="value(networkInterfaces[0].accessConfigs[0].natIP)" 2>/dev/null || true)
 
-    if [ -z "${EXTERNAL_IP}" ]; then
-        echo "ERROR: Could not get VM external IP."
-        echo "Make sure the VM is running: bash status.sh"
-        exit 1
+        if [ -z "${EXTERNAL_IP}" ]; then
+            echo "ERROR: Could not get VM external IP."
+            echo "Either make sure the VM is running (bash status.sh),"
+            echo "or pass a direct endpoint:"
+            echo "  bash connect-graphrag.sh --api-base http://<host>:8000/v1"
+            exit 1
+        fi
+
+        VLLM_API_BASE="http://${EXTERNAL_IP}:${VLLM_PORT}/v1"
     fi
-
-    VLLM_API_BASE="http://${EXTERNAL_IP}:${VLLM_PORT}/v1"
 
     echo "Connecting pipeline to vLLM..."
     echo "  API base: ${VLLM_API_BASE}"

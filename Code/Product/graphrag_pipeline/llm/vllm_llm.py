@@ -54,6 +54,10 @@ class VllmLLM(LLMInterface):
         messages = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
+        if not self.enable_thinking:
+            # Qwen3 soft-switch: append /no_think so the model skips reasoning natively
+            prompt = f"{prompt}\n/no_think"
+
         messages.append({"role": "user", "content": prompt})
 
         import time
@@ -68,10 +72,8 @@ class VllmLLM(LLMInterface):
                 "max_tokens": self.max_tokens,
             }
             
-            # <-- ADDED: Inject the extra_body to disable thinking if needed
-            if not self.enable_thinking:
-                call_kwargs["extra_body"] = {"enable_thinking": False}
-
+            # vLLM's OpenAI-compatible API does not natively support disabling thought 
+            # tags via the payload for Qwen models, so we will post-process it instead.
             return await self._client.chat.completions.create(**call_kwargs)
 
         response = await self._execute_with_retry("vLLM", _call)
@@ -79,6 +81,11 @@ class VllmLLM(LLMInterface):
         duration_sec = time.time() - start_time
 
         content = response.choices[0].message.content or ""
+        
+        # If thinking is disabled, manually strip out the <think> blocks
+        if not self.enable_thinking:
+            import re
+            content = re.sub(r"<think>.*?</think>\n*", "", content, flags=re.DOTALL).strip()
 
         prompt_tokens = 0
         completion_tokens = 0

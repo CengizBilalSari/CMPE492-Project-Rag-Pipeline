@@ -2,6 +2,8 @@
 
 Deploy a self-hosted LLM on a single GCP VM for your GraphRAG project.
 
+If you prefer Lightning AI Studio instead of GCP VM orchestration, use the Lightning workflow section below.
+
 ## Directory Structure
 
 ```
@@ -63,4 +65,43 @@ graphrag query --method global --query "What is this dataset about?"
 
 ```bash
 bash connect-graphrag.sh --use-openai
+```
+
+## Lightning AI Studio Workflow
+
+Use this when you want the same vLLM serving pattern without `gcloud` / VM metadata startup scripts.
+
+### 1) In Lightning Studio terminal, install dependencies
+
+```bash
+pip install --upgrade pip
+pip install vllm openai pyyaml
+```
+
+### 2) Start vLLM in Studio
+
+```bash
+cd CMPE492-Project-Rag-Pipeline/Code/Product/graphrag-deploy
+export HF_TOKEN="hf_xxxxx"   # only needed for gated/private models
+bash lightning-serve.sh start
+bash lightning-serve.sh status
+```
+
+### 3) Connect GraphRAG to that endpoint
+
+- If GraphRAG runs in the same Studio: use `http://localhost:8000/v1`
+- If GraphRAG runs elsewhere: use your Studio's exposed URL for port 8000
+
+```bash
+bash connect-graphrag.sh --api-base http://localhost:8000/v1
+```
+
+### 4) Run and stop
+
+```bash
+cd ../graphrag_pipeline
+# run your pipeline/query commands
+
+cd ../graphrag-deploy
+bash lightning-serve.sh stop
 ```
