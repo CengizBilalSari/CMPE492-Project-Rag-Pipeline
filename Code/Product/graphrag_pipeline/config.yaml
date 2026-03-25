@@ -1,18 +1,20 @@
 chunking:
-  strategy: recursive
-  chunk_size: 1000
+  strategy: "recursive"  # Options: sentence, token, character, recursive, semantic, propositional
+  chunk_size: 2000
   chunk_overlap: 200
 llm:
-  provider: vllm
-  model: deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
+  provider: "openai"       # Options: groq, openai, vertex
+  model: "gpt-4o-mini"
   temperature: 0.0
-  max_tokens: 32768
+  max_tokens: 4096 
+
 embedding:
   model: all-MiniLM-L6-v2
 neo4j:
   database: neo4j
 extraction:
-  max_concurrency: 4
+  max_concurrency: 5  # Keep low for 429 error
+
 entity_resolution:
   enabled: true
   k_neighbors: 10
@@ -23,7 +25,20 @@ entity_resolution:
 community_detection:
   algorithm: louvain
   resolution: 1.0
+
+global_search:
+  max_token_per_batch: 8000
+  max_concurrency: 1
+  top_k: 20
+  top_communities: 30
+
 local_search:
   top_k_entities: 5
   hop_depth: 1
   max_chunks: 10
+
+lazy_search:
+  max_subqueries: 5
+  max_chunks: 10
+  nlp_model: "en_core_web_lg"
+

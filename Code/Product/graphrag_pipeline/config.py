@@ -59,6 +59,7 @@ class GlobalSearchConfig(BaseModel):
     max_token_per_batch: int = 2000
     max_concurrency: int = 5
     top_k: int = 10
+    top_communities: int = 20
 
 
 class LocalSearchConfig(BaseModel):
@@ -66,6 +67,11 @@ class LocalSearchConfig(BaseModel):
     hop_depth: int = 1
     max_chunks: int = 10
     max_concurrency: int = 1
+
+class LazySearchConfig(BaseModel):
+    max_subqueries: int = 5
+    max_chunks: int = 10
+    nlp_model: str = "en_core_web_lg" # Options: en_core_web_sm, en_core_web_md, en_core_web_lg, en_core_web_trf
 
 
 class PipelineConfig(BaseModel):
@@ -78,15 +84,20 @@ class PipelineConfig(BaseModel):
     community_detection: CommunityDetectionConfig = CommunityDetectionConfig()
     global_search: GlobalSearchConfig = GlobalSearchConfig()
     local_search: LocalSearchConfig = LocalSearchConfig()
+    lazy_search: LazySearchConfig = LazySearchConfig()
 
 
 
-def load_config() -> PipelineConfig:
-    path = str(_PROJECT_ROOT / "config.yaml")
+def load_config(config_path: Optional[str] = None) -> PipelineConfig:
+    if config_path is None:
+        path = str(_PROJECT_ROOT / "config.yaml")
+    else:
+        path = config_path
+        
     data: dict[str, Any] = {}
-    config_path = Path(path)
-    if config_path.exists():
-        with open(config_path, "r", encoding="utf-8") as fh:
+    path_obj = Path(path)
+    if path_obj.exists():
+        with open(path_obj, "r", encoding="utf-8") as fh:
             data = yaml.safe_load(fh) or {}
     return PipelineConfig(**data)
 

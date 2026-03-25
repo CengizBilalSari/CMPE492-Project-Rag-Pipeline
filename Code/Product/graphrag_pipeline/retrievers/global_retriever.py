@@ -6,7 +6,6 @@ import logging
 import re
 from typing import Any, List, Dict
 
-import tiktoken
 from ..llm.base import LLMInterface
 
 logger = logging.getLogger(__name__)
@@ -60,6 +59,8 @@ class GlobalRetriever:
         max_concurrency: int = 1,
         top_k: int = 10,
         database: str = "neo4j",
+        embedding_fn=None,
+        top_communities: int = 20,
     ) -> None:
         self.driver = driver
         self.llm = llm
@@ -67,6 +68,9 @@ class GlobalRetriever:
         self.max_concurrency = max_concurrency
         self.top_k = top_k
         self.database = database
+        self.embedding_fn = embedding_fn
+        self.top_communities = top_communities
+        import tiktoken
         self._encoder = tiktoken.get_encoding("cl100k_base")
 
     async def search(self, query: str) -> str:
@@ -77,6 +81,12 @@ class GlobalRetriever:
             logger.warning("[Retriever] No community summaries found in Neo4j!")
             return "No community summaries found in the knowledge graph. Please index a document first."
         logger.info("[Retriever] Fetched %d community summaries from Neo4j.", len(summaries))
+
+        if self.embedding_fn and len(summaries) > self.top_communities:
+            logger.info("[Retriever] Pre-filtering %d summaries → top %d using embedding similarity...",
+                        len(summaries), self.top_communities)
+            summaries = await self._filter_summaries(query, summaries)
+            logger.info("[Retriever] Pre-filter done. Using %d summaries for MAP.", len(summaries))
 
         batches = self._batch_summaries(summaries)
         logger.info("[Retriever] Created %d batch(es) (token_limit=%d per batch).",
@@ -117,6 +127,19 @@ class GlobalRetriever:
         logger.info("[Retriever] REDUCE phase complete. Final answer length: %d chars.", len(final_answer))
 
         return final_answer
+
+    async def _filter_summaries(self, query: str, summaries: List[str]) -> List[str]:
+        import numpy as np
+        texts = [query] + summaries
+        embeddings = await self.embedding_fn(texts)
+        emb = np.array(embeddings)
+        query_emb = emb[0]
+        summary_embs = emb[1:]
+        query_norm = query_emb / (np.linalg.norm(query_emb) + 1e-9)
+        norms = np.linalg.norm(summary_embs, axis=1, keepdims=True) + 1e-9
+        scores = (summary_embs / norms) @ query_norm
+        top_indices = np.argsort(scores)[::-1][:self.top_communities]
+        return [summaries[i] for i in top_indices]
 
     def _fetch_all_summaries(self) -> List[str]:
         records, _, _ = self.driver.execute_query(

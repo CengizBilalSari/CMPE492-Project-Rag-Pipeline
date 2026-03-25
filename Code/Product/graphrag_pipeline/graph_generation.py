@@ -1,6 +1,7 @@
 from __future__ import annotations
 import argparse
 import asyncio
+import hashlib
 import logging
 import os
 import sys
@@ -25,7 +26,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-from graphrag_pipeline.utils import hf_embed
 class GraphRAGPipeline:
     def __init__(self, config: PipelineConfig) -> None:
         self.config = config
@@ -65,93 +65,138 @@ class GraphRAGPipeline:
     async def run(self, document_text: str, doc_title: str = "", doc_source: str = "") -> None:
         import time
         logger.info("=" * 60)
-        logger.info("Starting GraphRAG Pipeline")
+        logger.info("Starting GraphRAG Pipeline (Modular)")
         logger.info("=" * 60)
         
         total_start_time = time.time()
 
         self.writer.create_indexes()
 
-        doc_id = self.writer.write_document(title=doc_title, source=doc_source)
+        doc_id = hashlib.md5(doc_title.encode()).hexdigest()
 
-        logger.info("Step 1/8: Chunking (%s strategy)...", self.config.chunking.strategy)
+        doc_id = self.writer.write_document(doc_id=doc_id, title=doc_title, source=doc_source)
+        
+        await self._chunk_step(doc_id, document_text)
+        
+        await self._extraction_step(doc_id)
+        
+        if self.config.entity_resolution.enabled:
+            await self._resolution_step(doc_id)
+        
+        await self._embedding_step(doc_id)
+        
+        await self._community_step(doc_id)
+        
+        await self._summarization_step(doc_id)
+
+        total_time = time.time() - total_start_time
+        logger.info("=" * 60)
+        logger.info("GraphRAG Pipeline COMPLETE")
+        logger.info("=" * 60)
+        self._print_pipeline_summary(total_time)
+
+    async def _chunk_step(self, doc_id: str, document_text: str) -> None:
+        status = self.writer.get_document_status(doc_id)
+        chunks_count = self.writer.get_chunks_count(doc_id)
+        
+        if status in ["CHUNKED", "EXTRACTED", "RESOLVED", "COMPLETED"] or chunks_count > 0:
+            logger.info("Step 1: Chunking skipped (Already completed or chunks exist).")
+            return
+
+        import time
+        logger.info("Step 1: Chunking (%s strategy)...", self.config.chunking.strategy)
         t0 = time.time()
         chunks = self.chunker.chunk(document_text)
+        self.writer.write_chunks(doc_id, chunks)
         self.step_times["1. Chunking"] = time.time() - t0
-        logger.info("  → %d chunks produced.", len(chunks))
+        logger.info("  → %d chunks produced and written.", len(chunks))
 
-        logger.info("Step 2/8: Skipping proposition generation (strategy != propositional).")
-        self.step_times["2. Propositions"] = 0.0
+    async def _extraction_step(self, doc_id: str) -> None:
+        import time
+        unextracted = self.writer.get_unextracted_chunks(doc_id)
+        if not unextracted:
+            logger.info("Step 2: Extraction skipped (All chunks already extracted).")
+            return
 
+        logger.info("Step 2: Extracting entities & relations from %d chunks...", len(unextracted))
         t0 = time.time()
-        chunk_ids = self.writer.write_chunks(doc_id, chunks)
-        self.step_times["2.5 Write Chunks"] = time.time() - t0
-
-        logger.info("Step 3/8: Extracting entities & relations (parallel, concurrency=%d)...",
-                     self.config.extraction.max_concurrency)
-        t0 = time.time()
-        extraction_results = await self.er_extractor.extract_from_chunks(chunks)
-        self.step_times["3. Extraction"] = time.time() - t0
-        total_entities = sum(len(r.entities) for r in extraction_results)
-        total_relations = sum(len(r.relations) for r in extraction_results)
-        logger.info("  → %d entities, %d relations extracted.", total_entities, total_relations)
-
-        logger.info("Step 4/8: Writing entities & relations to Neo4j...")
-        t0 = time.time()
+        
+        chunk_ids = [u[0] for u in unextracted]
+        chunk_texts = [u[1] for u in unextracted]
+        
+        extraction_results = await self.er_extractor.extract_from_chunks(chunk_texts)
         self.writer.write_entities_and_relations(chunk_ids, extraction_results)
-        self.step_times["4. Write Ents/Rels"] = time.time() - t0
+        
+        self.step_times["2. Extraction"] = time.time() - t0
+        self.writer.update_document_status(doc_id, "EXTRACTED")
 
-        if self.config.entity_resolution.enabled:
-            logger.info("Step 5/8: Entity Resolution (KNN → WCC → Word Distance → LLM)...")
-            t0 = time.time()
-            er_config = self.config.entity_resolution
-            embedding_model = self.config.embedding.model
+    async def _resolution_step(self, doc_id: str) -> None:
+        import time
+        status = self.writer.get_document_status(doc_id)
+        if status == "RESOLVED":
+            logger.info("Step 3: Entity Resolution skipped (Already completed).")
+            return
 
-            async def embed_fn(texts: list[str]) -> list[list[float]]:
-                return await hf_embed(texts, model_name=embedding_model, show_progress=True)
+        logger.info("Step 3: Entity Resolution (KNN → WCC → Word Distance → LLM)...")
+        t0 = time.time()
+        er_config = self.config.entity_resolution
+        embedding_model = self.config.embedding.model
 
-            resolver = EntityResolver(
-                driver=self._driver,
-                llm=self.llm,
-                embedding_fn=embed_fn,
-                k_neighbors=er_config.k_neighbors,
-                similarity_threshold=er_config.similarity_threshold,
-                word_distance_threshold=er_config.word_distance_threshold,
-                max_concurrency=er_config.max_concurrency,
-                database=self.config.neo4j.database,
-                use_llm=er_config.use_llm,
-            )
-            decisions = await resolver.resolve()
-            self.step_times["5. Entity Resolution"] = time.time() - t0
-            logger.info("  → %d merge groups resolved.", len(decisions))
-        else:
-            logger.info("Step 5/9: Entity resolution DISABLED — skipping.")
-            self.step_times["5. Entity Resolution"] = 0.0
+        async def embed_fn(texts: list[str]) -> list[list[float]]:
+            from graphrag_pipeline.utils import hf_embed
+            return await hf_embed(texts, model_name=embedding_model, show_progress=True)
 
-        logger.info("Step 5b/9: Embedding entities for local search...")
+        resolver = EntityResolver(
+            driver=self._driver,
+            llm=self.llm,
+            embedding_fn=embed_fn,
+            k_neighbors=er_config.k_neighbors,
+            similarity_threshold=er_config.similarity_threshold,
+            word_distance_threshold=er_config.word_distance_threshold,
+            max_concurrency=er_config.max_concurrency,
+            database=self.config.neo4j.database,
+            use_llm=er_config.use_llm,
+        )
+        decisions = await resolver.resolve()
+        self.step_times["3. Entity Resolution"] = time.time() - t0
+        self.writer.update_document_status(doc_id, "RESOLVED")
+        logger.info("  → %d merge groups resolved.", len(decisions))
+
+    async def _embedding_step(self, doc_id: str) -> None:
+        import time
+        logger.info("Step 4: Embedding entities for local search...")
         t0 = time.time()
         entity_rows: list[tuple[str, str]] = []
         with self._driver.session(database=self.config.neo4j.database) as session:
-            result = session.run("MATCH (e:Entity) RETURN e.name AS name, e.description AS description")
+            result = session.run("MATCH (e:Entity) WHERE e.text_embedding IS NULL RETURN e.name AS name, e.description AS description")
             entity_rows = [(r["name"], r["description"] or "") for r in result if r["name"]]
-        logger.info("  → Embedding %d entities...", len(entity_rows))
-        if entity_rows:
-            embed_texts = [
-                f"{name}: {desc}".strip(": ") if desc else name
-                for name, desc in entity_rows
-            ]
-            entity_embeddings = await hf_embed(
-                embed_texts,
-                model_name=self.config.embedding.model,
-                show_progress=True,
-            )
-            name_to_emb = {name: emb for (name, _), emb in zip(entity_rows, entity_embeddings)}
-            self.writer.write_entity_embeddings(name_to_emb)
-        self.step_times["5b. Embedding"] = time.time() - t0
+        
+        if not entity_rows:
+            logger.info("  → All entities already have embeddings. Skipping.")
+            self.step_times["4. Embedding"] = time.time() - t0
+            return
 
-        algo = self.config.community_detection.algorithm
-        logger.info("Step 6/9: Community detection (%s via Neo4j GDS)...", algo)
+        logger.info("  → Embedding %d entities...", len(entity_rows))
+        embed_texts = [
+            f"{name}: {desc}".strip(": ") if desc else name
+            for name, desc in entity_rows
+        ]
+        from graphrag_pipeline.utils import hf_embed
+        entity_embeddings = await hf_embed(
+            embed_texts,
+            model_name=self.config.embedding.model,
+            show_progress=True,
+        )
+        name_to_emb = {name: emb for (name, _), emb in zip(entity_rows, entity_embeddings)}
+        self.writer.write_entity_embeddings(name_to_emb)
+        
+        self.step_times["4. Embedding"] = time.time() - t0
+
+    async def _community_step(self, doc_id: str) -> None:
+        import time
+        logger.info("Step 5: Community detection...")
         t0 = time.time()
+        algo = self.config.community_detection.algorithm
         detector = CommunityDetector(
             driver=self._driver,
             database=self.config.neo4j.database,
@@ -160,15 +205,13 @@ class GraphRAGPipeline:
             level=self.config.community_detection.level,
         )
         communities = detector.detect()
-        self.step_times["6. Community Detection"] = time.time() - t0
+        self.writer.write_communities(communities)
+        self.step_times["5. Community Detection"] = time.time() - t0
         logger.info("  → %d communities detected.", len(communities))
 
-        logger.info("Step 7/9: Writing communities to Neo4j...")
-        t0 = time.time()
-        self.writer.write_communities(communities)
-        self.step_times["7. Write Communities"] = time.time() - t0
-
-        logger.info("Step 8/9: Summarizing communities (parallel)...")
+    async def _summarization_step(self, doc_id: str) -> None:
+        import time
+        logger.info("Step 6: Summarizing communities...")
         t0 = time.time()
         summarizer = CommunitySummarizer(
             driver=self._driver,
@@ -176,20 +219,17 @@ class GraphRAGPipeline:
             max_concurrency=self.config.extraction.max_concurrency,
             database=self.config.neo4j.database,
         )
-        summaries = await summarizer.summarize(communities)
-        self.writer.write_community_summaries(summaries)
-        self.step_times["8. Summarize Communities"] = time.time() - t0
-        
-        total_time = time.time() - total_start_time
+        communities_to_summarize = summarizer._get_unsummarized_communities() 
+        if not communities_to_summarize:
+             logger.info("  → All communities already summarized.")
+             return
 
-        logger.info("=" * 60)
-        logger.info("GraphRAG Pipeline COMPLETE")
-        logger.info("=" * 60)
-        
-        self._print_pipeline_summary(total_time)
+        summaries = await summarizer.summarize(communities_to_summarize)
+        self.writer.write_community_summaries(summaries)
+        self.step_times["6. Summarize Communities"] = time.time() - t0
+        self.writer.update_document_status(doc_id, "COMPLETED")
         
     def _print_pipeline_summary(self, total_time: float) -> None:
-        """Query Neo4j for final counts and print a summary table of time and graph data."""
         with self._driver.session(database=self.config.neo4j.database) as session:
             doc_count = session.run("MATCH (d:Document) RETURN count(d) as c").single()["c"]
             chunk_count = session.run("MATCH (c:Chunk) RETURN count(c) as c").single()["c"]

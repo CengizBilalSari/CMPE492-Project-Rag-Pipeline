@@ -15,7 +15,7 @@ except Exception:
     Groq = None
 
 from .models import EvalConfig
-from .rag import RAGClient
+from .rag import RAGClient, GraphRAGClient
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -147,7 +147,7 @@ class MockRAGClient:
             raise ValueError(f"Unsupported provider: {provider}")
         self.model = model
 
-    def query(self, question: str) -> Dict:
+    def query(self, question: str, **_kwargs) -> Dict:
         """Return a mock RAG response with answer + retrieved_contexts."""
         system_prompt = (
             "You are a mock RAG system. Given the question and any available "
@@ -193,7 +193,7 @@ class RAGEndpointClient:
     def __init__(self, endpoint_url: str, http_method: str, top_k: int):
         self.client = RAGClient(endpoint_url, http_method, top_k)
 
-    def query(self, question: str, **_kwargs) -> Dict:
+    def query(self, question: str, **_kwargs) -> Dict:  # noqa: E501
         start = time.perf_counter()
         result = self.client.retrieve(question)
         latency_ms = (time.perf_counter() - start) * 1000
@@ -207,7 +207,10 @@ class RAGEvaluator:
     def __init__(self, config: EvalConfig):
         self.config = config
 
-        if config.rag_endpoint_url:
+        if config.graphrag_dir:
+            logger.info("Using GraphRAG pipeline from: %s", config.graphrag_dir)
+            self._rag = GraphRAGClient(config.graphrag_dir)
+        elif config.rag_endpoint_url:
             self._rag = RAGEndpointClient(
                 config.rag_endpoint_url, config.rag_http_method, config.rag_top_k
             )
@@ -224,8 +227,9 @@ class RAGEvaluator:
             question = row.get("question", "")
             ground_truth = row.get("answer", "")
 
-            logger.info("Querying RAG for question %s/%s", i + 1, len(qa_rows))
-            result = self._rag.query(question)
+            question_type = row.get("question_type", "global")
+            logger.info("Querying RAG for question %s/%s [%s]", i + 1, len(qa_rows), question_type)
+            result = self._rag.query(question, question_type=question_type)
 
             rag_answer = result["answer"]
             contexts = result.get("retrieved_contexts", [])

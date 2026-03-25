@@ -1,0 +1,10 @@
+services:
+  lightning-ai:
+    build: .
+    container_name: lightning-ai-runner
+    volumes:
+      - .:/app/lightning-ai
+    env_file:
+      - .env
+    stdin_open: true
+    tty: true

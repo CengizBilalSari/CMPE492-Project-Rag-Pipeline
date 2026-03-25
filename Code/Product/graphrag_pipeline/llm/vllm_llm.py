@@ -19,7 +19,7 @@ class VllmLLM(LLMInterface):
 
     def __init__(
         self,
-        model: str = "Qwen/Qwen3-8B", # Updated default model to Qwen3
+        model: str = "meta-llama/Llama-3.1-8B-Instruct",
         temperature: float = 0.0,
         max_tokens: int = 4096,
         enable_thinking: bool = False, # <-- ADDED: Toggle for Qwen reasoning
@@ -33,6 +33,7 @@ class VllmLLM(LLMInterface):
             raise ImportError("Install the 'openai' package: pip install openai") from exc
 
         api_base = os.getenv("VLLM_API_BASE")
+        logger.info("VLLM API Base: %s", api_base)
         if not api_base:
             raise ValueError(
                 "VLLM_API_BASE environment variable is not set.\n"
@@ -63,6 +64,7 @@ class VllmLLM(LLMInterface):
         import time
         start_time = time.time()
 
+
         async def _call():
             # Build the base arguments
             call_kwargs = {
@@ -76,7 +78,11 @@ class VllmLLM(LLMInterface):
             # tags via the payload for Qwen models, so we will post-process it instead.
             return await self._client.chat.completions.create(**call_kwargs)
 
-        response = await self._execute_with_retry("vLLM", _call)
+        try:
+            response = await self._execute_with_retry("vLLM", _call)
+        except Exception as e:
+            print(f"❌ [DEBUG] Request failed for URL {full_url}. Error: {e}")
+            raise e
 
         duration_sec = time.time() - start_time
 
@@ -95,5 +101,5 @@ class VllmLLM(LLMInterface):
 
         self._update_and_log_usage(prompt_tokens, completion_tokens, duration_sec)
 
-        logger.debug("vLLM response (%s tokens): %s...", len(content), content[:200])
+        logger.info("vLLM response (%s tokens): %s...", len(content), content)
         return content

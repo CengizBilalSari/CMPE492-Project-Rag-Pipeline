@@ -21,7 +21,6 @@ class GraphRAGNeo4jWriter:
         self.batch_size = batch_size
 
     def create_indexes(self) -> None:
-        """Create indexes and constraints for optimal performance."""
         queries = [
             "CREATE CONSTRAINT IF NOT EXISTS FOR (d:Document) REQUIRE d.id IS UNIQUE",
             "CREATE CONSTRAINT IF NOT EXISTS FOR (c:Chunk) REQUIRE c.id IS UNIQUE",
@@ -49,6 +48,7 @@ class GraphRAGNeo4jWriter:
                 """
                 MERGE (d:Document {id: $id})
                 SET d.title = $title, d.source = $source
+                SET d.status = CASE WHEN d.status IS NULL THEN 'CREATED' ELSE d.status END
                 """,
                 id=doc_id,
                 title=title,
@@ -76,7 +76,46 @@ class GraphRAGNeo4jWriter:
                     index=idx,
                 )
         logger.info("Wrote %d chunks for document %s.", len(chunks), doc_id)
+        self.update_document_status(doc_id, "CHUNKED")
         return chunk_ids
+
+    def get_document_status(self, doc_id: str) -> Optional[str]:
+        with self.driver.session(database=self.database) as session:
+            result = session.run(
+                "MATCH (d:Document {id: $id}) RETURN d.status AS status",
+                id=doc_id,
+            ).single()
+            return result["status"] if result else None
+
+    def update_document_status(self, doc_id: str, status: str) -> None:
+        with self.driver.session(database=self.database) as session:
+            session.run(
+                "MATCH (d:Document {id: $id}) SET d.status = $status",
+                id=doc_id,
+                status=status,
+            )
+        logger.info("Document %s status updated to: %s", doc_id, status)
+
+    def get_unextracted_chunks(self, doc_id: str) -> list[tuple[str, str, int]]:
+        with self.driver.session(database=self.database) as session:
+            result = session.run(
+                """
+                MATCH (d:Document {id: $doc_id})-[:HAS_CHUNK]->(c:Chunk)
+                WHERE NOT (c)-[:MENTIONS]->(:Entity)
+                RETURN c.id AS id, c.text AS text, c.index AS index
+                ORDER BY c.index
+                """,
+                doc_id=doc_id,
+            )
+            return [(r["id"], r["text"], r["index"]) for r in result]
+
+    def get_chunks_count(self, doc_id: str) -> int:
+        with self.driver.session(database=self.database) as session:
+            result = session.run(
+                "MATCH (d:Document {id: $doc_id})-[:HAS_CHUNK]->(c:Chunk) RETURN count(c) as count",
+                doc_id=doc_id,
+            ).single()
+            return result["count"] if result else 0
 
 
     def write_entities_and_relations(
