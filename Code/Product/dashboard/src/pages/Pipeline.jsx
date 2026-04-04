@@ -11,24 +11,43 @@ const MODELS = {
   ],
 };
 const CHUNKERS = [
-  "sentence",
-  "token",
-  "character",
-  "recursive",
-  "semantic",
-  "propositional",
+  "sentence", "token", "character",
+  "recursive", "semantic", "propositional",
 ];
+
+// Known pipeline step keywords → classify log line appearance
+function classifyLog(text) {
+  const t = text.toLowerCase();
+  if (t.includes("error") || t.includes("failed") || t.includes("exception")) return "log-error";
+  if (t.includes("warn"))                  return "log-warn";
+  if (t.includes("step") || t.includes("starting") || t.includes("running") || t.includes("phase")) return "log-step";
+  if (t.includes("complete") || t.includes("done") || t.includes("success") || t.includes("finished")) return "log-ok";
+  return "";
+}
+
+function logPrefix(cls) {
+  if (cls === "log-error") return "✖";
+  if (cls === "log-warn")  return "⚠";
+  if (cls === "log-step")  return "◆";
+  if (cls === "log-ok")    return "✔";
+  return "›";
+}
+
+function now() {
+  return new Date().toLocaleTimeString("en-US", { hour12: false });
+}
 
 export default function Pipeline() {
   const [docs, setDocs] = useState([]);
   const [docId, setDocId] = useState("");
-  const [provider, setProvider] = useState("openai");
-  const [model, setModel] = useState(MODELS.openai[0]);
+  const [provider, setProvider] = useState("lmstudio");
+  const [model, setModel] = useState(MODELS.lmstudio[0]);
   const [chunker, setChunker] = useState("recursive");
   const [chunkSize, setChunkSize] = useState(512);
   const [overlap, setOverlap] = useState(50);
   const [logs, setLogs] = useState([]);
   const [running, setRunning] = useState(false);
+  const [done, setDone] = useState(false);
   const wsRef = useRef(null);
   const logEndRef = useRef(null);
 
@@ -39,24 +58,27 @@ export default function Pipeline() {
     });
   }, []);
 
-  useEffect(() => {
-    setModel(MODELS[provider][0]);
-  }, [provider]);
+  useEffect(() => { setModel(MODELS[provider][0]); }, [provider]);
 
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [logs]);
 
+  function pushLog(text, type = "") {
+    const cls = type || classifyLog(text);
+    setLogs((prev) => [...prev, { text, cls, time: now() }]);
+  }
+
   function start() {
     if (!docId) return;
     setLogs([]);
+    setDone(false);
     setRunning(true);
-
-    const doc = docs.find((d) => d.id === docId);
+    pushLog("Connecting to pipeline…", "log-dim");
 
     const payload = {
       document_id: docId,
-      doc_title: doc?.filename || "untitled",
+      doc_title: docs.find((d) => d.id === docId)?.filename || "untitled",
       doc_source: "upload",
       config: {
         llm: { provider, model },
@@ -67,32 +89,56 @@ export default function Pipeline() {
     wsRef.current = connectPipeline(
       payload,
       (msg) => {
-        setLogs((prev) => [
-          ...prev,
-          {
-            text: msg.message || JSON.stringify(msg),
-            error: msg.type === "error",
-          },
-        ]);
-        if (msg.type === "complete" || msg.type === "error") {
+        const text = msg.message || JSON.stringify(msg);
+        const isError = msg.type === "error";
+        const isComplete =
+          msg.type === "complete" ||
+          text.toLowerCase().includes("pipeline complete") ||
+          text.toLowerCase().includes("finished");
+
+        pushLog(text, isError ? "log-error" : "");
+
+        if (isComplete || isError) {
           setRunning(false);
+          setDone(!isError);
         }
       },
-      () => setRunning(false)
+      () => {
+        setRunning(false);
+        pushLog("Connection closed.", "log-dim");
+      }
     );
   }
 
+  function stop() {
+    wsRef.current?.close();
+    setRunning(false);
+  }
+
+  const selectedDoc = docs.find((d) => d.id === docId);
+
   return (
     <>
-      <h2>Pipeline</h2>
+      <div className="page-header">
+        <h2>Pipeline</h2>
+        <p>Configure and run the GraphRAG knowledge graph construction pipeline.</p>
+      </div>
 
+      {/* Configuration */}
       <div className="card">
-        <h3>Configuration</h3>
+        <div className="card-header">
+          <div className="card-icon">⚙️</div>
+          <div>
+            <h3>Configuration</h3>
+            <div className="card-subtitle">Set LLM, chunking strategy, and select a document</div>
+          </div>
+        </div>
 
         <div className="form-row">
           <div className="form-group">
             <label>Document</label>
             <select value={docId} onChange={(e) => setDocId(e.target.value)}>
+              {docs.length === 0 && <option value="">No documents uploaded</option>}
               {docs.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.filename}
@@ -102,11 +148,8 @@ export default function Pipeline() {
           </div>
 
           <div className="form-group">
-            <label>Provider</label>
-            <select
-              value={provider}
-              onChange={(e) => setProvider(e.target.value)}
-            >
+            <label>LLM Provider</label>
+            <select value={provider} onChange={(e) => setProvider(e.target.value)}>
               {PROVIDERS.map((p) => (
                 <option key={p}>{p}</option>
               ))}
@@ -134,43 +177,98 @@ export default function Pipeline() {
           </div>
         </div>
 
-        <div className="form-row">
-          <div className="form-group">
+        <div className="form-row" style={{ marginBottom: 20 }}>
+          <div className="form-group" style={{ marginBottom: 0 }}>
             <label>Chunk Size</label>
             <input
               type="number"
               value={chunkSize}
+              min={100} max={4096}
               onChange={(e) => setChunkSize(Number(e.target.value))}
             />
           </div>
-          <div className="form-group">
+          <div className="form-group" style={{ marginBottom: 0 }}>
             <label>Overlap</label>
             <input
               type="number"
               value={overlap}
+              min={0} max={500}
               onChange={(e) => setOverlap(Number(e.target.value))}
             />
           </div>
         </div>
 
-        <button
-          className="btn btn-primary mt-16"
-          disabled={running || !docId}
-          onClick={start}
-        >
-          {running ? "Running..." : "Run Pipeline"}
-        </button>
+        {/* Summary pill */}
+        {selectedDoc && (
+          <div className="stat-row" style={{ marginBottom: 16 }}>
+            <div className="stat-pill">📄 <span>{selectedDoc.filename}</span></div>
+            <div className="stat-pill">🤖 <span>{provider} / {model}</span></div>
+            <div className="stat-pill">✂️ <span>{chunker} · {chunkSize}t · {overlap}o</span></div>
+          </div>
+        )}
+
+        <div className="flex gap-8">
+          <button
+            className="btn btn-primary"
+            disabled={running || !docId}
+            onClick={start}
+          >
+            {running ? (
+              <>
+                <span style={{ display: "inline-block", animation: "spin 1s linear infinite" }}>⚙</span>
+                Running…
+              </>
+            ) : (
+              <> ▶ Run Pipeline</>
+            )}
+          </button>
+
+          {running && (
+            <button className="btn btn-outline" onClick={stop}>
+              ⏹ Stop
+            </button>
+          )}
+
+          {done && !running && (
+            <span style={{ color: "var(--green)", fontSize: 13, fontWeight: 600, alignSelf: "center" }}>
+              ✔ Pipeline completed successfully
+            </span>
+          )}
+        </div>
       </div>
 
+      {/* Terminal log */}
       {logs.length > 0 && (
-        <div className="card">
-          <h3>Status Log</h3>
-          <div className="status-log">
+        <div className="terminal">
+          <div className="terminal-titlebar">
+            <span className="terminal-dot red" />
+            <span className="terminal-dot yellow" />
+            <span className="terminal-dot green" />
+            <span className="terminal-title" style={{ marginLeft: 8 }}>
+              graphrag-pipeline — {selectedDoc?.filename || "run"}
+            </span>
+            <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--text-dim)" }}>
+              {logs.length} line{logs.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+
+          <div className="terminal-body">
             {logs.map((l, i) => (
-              <div key={i} className={`line${l.error ? " error" : ""}`}>
-                {l.text}
+              <div key={i} className={`log-line ${l.cls}`}>
+                <span className="log-time">{l.time}</span>
+                <span className="log-prefix">{logPrefix(l.cls)}</span>
+                <span className="log-msg">{l.text}</span>
               </div>
             ))}
+            {running && (
+              <div className="log-line">
+                <span className="log-time">{now()}</span>
+                <span className="log-prefix" style={{ color: "var(--accent)" }}>›</span>
+                <span className="log-msg">
+                  <span className="log-cursor" />
+                </span>
+              </div>
+            )}
             <div ref={logEndRef} />
           </div>
         </div>
