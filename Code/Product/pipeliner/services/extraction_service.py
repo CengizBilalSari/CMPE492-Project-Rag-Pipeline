@@ -98,11 +98,22 @@ class EntityRelationshipExtractor:
 
     @staticmethod
     def _parse_response(response: str) -> dict[str, list]:
+        import re
         try:
             clean = response.strip()
+            clean = re.sub(r"<think>.*?</think>", "", clean, flags=re.DOTALL).strip()
             if clean.startswith("```"):
                 clean = clean.split("\n", 1)[1].rsplit("```", 1)[0]
-            data = json.loads(clean)
+            
+            # Fallback to regex json extraction if it still fails
+            try:
+                data = json.loads(clean)
+            except json.JSONDecodeError:
+                json_match = re.search(r"\{.*\}", clean, flags=re.DOTALL)
+                if json_match:
+                    data = json.loads(json_match.group(0))
+                else:
+                    raise
 
             entities = [
                 Entity(

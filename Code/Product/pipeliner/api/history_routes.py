@@ -46,3 +46,22 @@ async def list_evaluation_jobs(x_user_id: str = Header(..., alias="X-User-Id")):
         .execute()
     )
     return resp.data or []
+
+
+@router.get("/evaluation-jobs/{job_id}/details")
+async def get_evaluation_job_details(job_id: str, x_user_id: str = Header(..., alias="X-User-Id")):
+    db = _get_supabase()
+    # verify ownership
+    job_resp = db.table("evaluation_jobs").select("*").eq("id", job_id).eq("user_id", x_user_id).execute()
+    if not job_resp.data:
+        raise HTTPException(status_code=404, detail="Job not found")
+        
+    results_resp = db.table("evaluation_results").select("*").eq("job_id", job_id).execute()
+    # fetch qa pairs joined with their evaluations
+    qa_pairs_resp = db.table("qa_pairs").select("*, qa_evaluations(*)").eq("job_id", job_id).execute()
+    
+    return {
+        "job": job_resp.data[0],
+        "results": results_resp.data,
+        "qa_pairs": qa_pairs_resp.data
+    }

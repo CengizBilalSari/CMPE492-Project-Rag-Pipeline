@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
-ALLOWED_CONTENT_TYPES = {"application/pdf", "application/txt", "text/txt"}
+ALLOWED_CONTENT_TYPES = {"application/pdf", "application/txt", "text/txt", "text/plain", "text/csv"}
 
 
 @router.post("/upload")
@@ -38,6 +38,9 @@ async def upload_document(
     file_bytes = await file.read()
     if not file_bytes:
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+
+    if content_type == "text/plain":
+        content_type = "text/txt"
 
     try:
         result = store.upload_document(

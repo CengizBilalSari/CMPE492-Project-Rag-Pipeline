@@ -129,7 +129,7 @@ class OpenAILLM(LLMInterface):
 
 
 class LMStudioLLM(LLMInterface):
-    """LMStudio-hosted model via OpenAI-compatible API at localhost:1234."""
+    """LMStudio-hosted model via direct HTTP POST."""
 
     def __init__(
         self,
@@ -139,36 +139,49 @@ class LMStudioLLM(LLMInterface):
         base_url: str = LMSTUDIO_BASE_URL,
     ) -> None:
         super().__init__(model=model, temperature=temperature, max_tokens=max_tokens)
-        from openai import AsyncOpenAI
-
-        self._client = AsyncOpenAI(
-            api_key="lm-studio",
-            base_url=base_url,
-            max_retries=0,
-        )
+        self.base_url = base_url.rstrip("/")
 
     async def ainvoke(self, prompt: str, system_prompt: Optional[str] = None) -> str:
+        import httpx
+
         messages: list[dict] = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
 
+        temp = 0.7 if self.temperature == 0.0 else self.temperature
+
+        payload = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": temp,
+            "max_tokens": self.max_tokens if self.max_tokens > 0 else 4096,
+        }
+
         start = time.time()
 
         async def _call():
-            return await self._client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
-            )
+            endpoint = self.base_url if self.base_url.endswith("/chat/completions") else f"{self.base_url}/chat/completions"
+            async with httpx.AsyncClient() as client:
+                resp = await client.post(
+                    endpoint,
+                    json=payload,
+                    timeout=180.0
+                )
+                if resp.status_code >= 400:
+                    logger.error("LMStudio API Error %d: %s", resp.status_code, resp.text)
+                
+                resp.raise_for_status()
+                return resp.json()
 
-        response = await self._execute_with_retry("LMStudio", _call)
+        data = await self._execute_with_retry("LMStudio", _call)
         duration = time.time() - start
 
-        content = response.choices[0].message.content or ""
-        prompt_tokens = getattr(response.usage, "prompt_tokens", 0) if response.usage else 0
-        completion_tokens = getattr(response.usage, "completion_tokens", 0) if response.usage else 0
+        content = data["choices"][0]["message"]["content"]
+        
+        usage = data.get("usage", {})
+        prompt_tokens = usage.get("prompt_tokens", 0)
+        completion_tokens = usage.get("completion_tokens", 0)
         self._update_and_log_usage(prompt_tokens, completion_tokens, duration)
 
         return content
