@@ -119,10 +119,13 @@ class OpenAILLM(LLMInterface):
 
         response = await self._execute_with_retry("OpenAI", _call)
         duration = time.time() - start
-
         content = response.choices[0].message.content or ""
-        prompt_tokens = getattr(response.usage, "prompt_tokens", 0) if response.usage else 0
-        completion_tokens = getattr(response.usage, "completion_tokens", 0) if response.usage else 0
+        import re
+        content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+        
+        usage = response.usage
+        prompt_tokens = getattr(usage, "prompt_tokens", 0) if usage else 0
+        completion_tokens = getattr(usage, "completion_tokens", 0) if usage else 0
         self._update_and_log_usage(prompt_tokens, completion_tokens, duration)
 
         return content
@@ -177,7 +180,9 @@ class LMStudioLLM(LLMInterface):
         data = await self._execute_with_retry("LMStudio", _call)
         duration = time.time() - start
 
-        content = data["choices"][0]["message"]["content"]
+        content = data["choices"][0]["message"]["content"] or ""
+        import re
+        content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
         
         usage = data.get("usage", {})
         prompt_tokens = usage.get("prompt_tokens", 0)

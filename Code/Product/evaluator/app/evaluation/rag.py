@@ -75,6 +75,8 @@ class OpenAILLM(LLMInterface):
             pt = getattr(response.usage, "prompt_tokens", 0) if response.usage else 0
             ct = getattr(response.usage, "completion_tokens", 0) if response.usage else 0
 
+        import re
+        content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
         self._update_and_log_usage(pt, ct, duration)
         return content
 
