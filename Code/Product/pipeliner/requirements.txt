@@ -1,0 +1,32 @@
+# FastAPI & server
+fastapi==0.115.0
+uvicorn==0.30.0
+python-multipart==0.0.9
+websockets==13.0
+
+# Supabase
+supabase==2.9.1
+
+# Graph database
+neo4j==5.27.0
+graphdatascience==1.19
+
+# LLM clients
+openai==2.17.0
+
+# Text processing
+langchain-text-splitters==1.1.0
+langchain-huggingface==1.2.0
+langchain-experimental==0.4.1
+sentence-transformers==3.4.1
+nltk==3.9.2
+Levenshtein==0.27.3
+networkx==3.6.1
+tiktoken==0.11.0
+
+# Config & utilities
+pydantic==2.12.5
+pydantic-settings==2.12.0
+python-dotenv==1.2.1
+PyYAML==6.0.3
+PyPDF2==3.0.1
