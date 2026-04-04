@@ -1,0 +1,323 @@
+/* ── Theme ────────────────────────────────────────── */
+:root {
+  --dark: #4A4A4A;
+  --mid: #CBCBCB;
+  --cream: #FFFFE3;
+  --accent: #6D8196;
+  --accent-hover: #576d80;
+  --danger: #c0392b;
+  --success: #27ae60;
+  --font: "Inter", system-ui, -apple-system, sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font);
+  background: var(--cream);
+  color: var(--dark);
+  line-height: 1.5;
+}
+
+/* ── Layout ──────────────────────────────────────── */
+.layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: 220px;
+  background: var(--dark);
+  color: var(--cream);
+  display: flex;
+  flex-direction: column;
+  padding: 24px 0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+}
+
+.sidebar h1 {
+  font-size: 16px;
+  font-weight: 700;
+  padding: 0 20px 20px;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid rgba(255,255,227,0.15);
+  margin-bottom: 8px;
+}
+
+.sidebar a {
+  display: block;
+  padding: 10px 20px;
+  color: var(--mid);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.15s;
+}
+
+.sidebar a:hover,
+.sidebar a.active {
+  color: var(--cream);
+  background: var(--accent);
+}
+
+.sidebar .user-id {
+  margin-top: auto;
+  padding: 16px 20px;
+  font-size: 11px;
+  color: rgba(203,203,203,0.6);
+  border-top: 1px solid rgba(255,255,227,0.1);
+  word-break: break-all;
+}
+
+.main {
+  margin-left: 220px;
+  flex: 1;
+  padding: 32px 40px;
+  max-width: 1100px;
+}
+
+.main h2 {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 24px;
+  color: var(--dark);
+}
+
+/* ── Cards ───────────────────────────────────────── */
+.card {
+  background: #fff;
+  border: 1px solid var(--mid);
+  border-radius: 8px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+}
+
+.card h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--accent);
+}
+
+/* ── Buttons ─────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-family: var(--font);
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--accent);
+  border: 1.5px solid var(--accent);
+}
+.btn-outline:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* ── Forms ───────────────────────────────────────── */
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--dark);
+}
+
+.form-group select,
+.form-group input[type="text"],
+.form-group input[type="number"] {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1.5px solid var(--mid);
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: var(--font);
+  background: #fff;
+  color: var(--dark);
+}
+
+.form-group select:focus,
+.form-group input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* ── File upload ─────────────────────────────────── */
+.file-drop {
+  border: 2px dashed var(--mid);
+  border-radius: 8px;
+  padding: 32px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.file-drop:hover { border-color: var(--accent); }
+.file-drop input { display: none; }
+
+/* ── Status log ──────────────────────────────────── */
+.status-log {
+  background: var(--dark);
+  color: var(--cream);
+  border-radius: 8px;
+  padding: 16px 20px;
+  font-family: "SF Mono", "Fira Code", monospace;
+  font-size: 12px;
+  line-height: 1.8;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.status-log .line { opacity: 0.7; }
+.status-log .line:last-child { opacity: 1; }
+.status-log .line.error { color: #e74c3c; }
+
+/* ── Badges ──────────────────────────────────────── */
+.badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge-pending   { background: var(--mid); color: var(--dark); }
+.badge-running   { background: var(--accent); color: #fff; }
+.badge-completed { background: var(--success); color: #fff; }
+.badge-failed    { background: var(--danger); color: #fff; }
+
+/* ── Tables ──────────────────────────────────────── */
+.table-wrap { overflow-x: auto; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+th {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 2px solid var(--mid);
+  font-weight: 600;
+  color: var(--accent);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #eee;
+}
+
+tr:hover td { background: rgba(109,129,150,0.04); }
+
+/* ── Checkboxes ──────────────────────────────────── */
+.checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.checkbox-group label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1.5px solid var(--mid);
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+}
+
+.checkbox-group label:has(input:checked) {
+  border-color: var(--accent);
+  background: rgba(109,129,150,0.1);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.checkbox-group input { display: none; }
+
+/* ── Chart container ─────────────────────────────── */
+.chart-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.chart-card {
+  background: #fff;
+  border: 1px solid var(--mid);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.chart-card h4 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dark);
+  margin-bottom: 12px;
+}
+
+/* ── Misc ────────────────────────────────────────── */
+.empty {
+  text-align: center;
+  padding: 40px;
+  color: var(--mid);
+  font-size: 14px;
+}
+
+.error-msg {
+  background: rgba(192,57,43,0.08);
+  color: var(--danger);
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.mt-16 { margin-top: 16px; }
+.mb-8  { margin-bottom: 8px; }
+.gap-8 { gap: 8px; display: flex; }
