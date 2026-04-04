@@ -158,7 +158,7 @@ class LMStudioLLM(LLMInterface):
             "model": self.model,
             "messages": messages,
             "temperature": temp,
-            "max_tokens": self.max_tokens if self.max_tokens > 0 else 4096,
+            "max_tokens": self.max_tokens if self.max_tokens > 0 else 2048,
         }
 
         start = time.time()

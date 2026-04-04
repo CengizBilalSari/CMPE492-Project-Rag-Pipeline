@@ -85,7 +85,9 @@ class GraphRAGNeo4jWriter:
             result = session.run(
                 """
                 MATCH (d:Document {id: $doc_id})-[:HAS_CHUNK]->(c:Chunk)
-                WHERE NOT (c)-[:MENTIONS]->(:Entity)
+                OPTIONAL MATCH (c)-[r:MENTIONS]->()
+                WITH c, r
+                WHERE r IS NULL
                 RETURN c.id AS id, c.text AS text, c.index AS index
                 ORDER BY c.index
                 """,
