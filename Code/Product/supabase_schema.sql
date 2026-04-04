@@ -36,6 +36,7 @@ CREATE TABLE evaluation_jobs (
   user_id         TEXT NOT NULL,
   search_types    TEXT[] NOT NULL,          -- e.g. {"global","local","ppr"}
   question_source TEXT NOT NULL,            -- 'auto' | 'custom'
+  document_id     UUID REFERENCES documents(id) ON DELETE SET NULL, -- Track source
   status          TEXT NOT NULL DEFAULT 'pending',
     -- pending → generating_questions → evaluating → completed | failed
   progress        TEXT,

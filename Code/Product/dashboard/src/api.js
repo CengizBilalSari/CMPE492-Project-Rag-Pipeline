@@ -60,11 +60,14 @@ export function connectPipeline(payload, onMessage, onClose) {
 
 // ── Evaluation ──────────────────────────────────────
 
-export async function startEvaluation(searchTypes, questionSource, file) {
+export async function startEvaluation(searchTypes, questionSource, file, provider, model, docId) {
   const form = new FormData();
   form.append("search_types", searchTypes.join(","));
   form.append("question_source", questionSource);
+  form.append("llm_provider", provider || "openai");
+  form.append("llm_model", model || "gpt-4o");
   if (file) form.append("file", file);
+  if (docId) form.append("doc_id", docId);
 
   const res = await fetch(`${EVALUATOR_BASE}/evaluate/start`, {
     method: "POST",
@@ -111,6 +114,14 @@ export async function getEvaluationJobs() {
     headers: headers(),
   });
   if (!res.ok) return [];
+  return res.json();
+}
+
+export async function getEvaluationJobDetails(jobId) {
+  const res = await fetch(`${PIPELINER_BASE}/api/history/evaluation-jobs/${jobId}/details`, {
+    headers: headers(),
+  });
+  if (!res.ok) return null;
   return res.json();
 }
 
