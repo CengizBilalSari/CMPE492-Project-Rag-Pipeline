@@ -31,17 +31,21 @@ def _get_supabase() -> Client:
 # ── Job lifecycle ────────────────────────────────────────
 
 
-def create_job(user_id: str, search_types: List[str], question_source: str) -> str:
+def create_job(user_id: str, search_types: List[str], question_source: str, document_id: Optional[str] = None) -> str:
     """Insert a new evaluation_jobs row and return its id."""
     job_id = str(uuid.uuid4())
     db = _get_supabase()
-    db.table("evaluation_jobs").insert({
+    payload = {
         "id": job_id,
         "user_id": user_id,
         "search_types": search_types,
         "question_source": question_source,
         "status": "pending",
-    }).execute()
+    }
+    if document_id:
+        payload["document_id"] = document_id
+
+    db.table("evaluation_jobs").insert(payload).execute()
     return job_id
 
 
@@ -74,6 +78,8 @@ def start_evaluation_job(
     question_source: str,
     uploaded_csv_bytes: Optional[bytes] = None,
     document_texts: Optional[List[str]] = None,
+    llm_provider: str = "openai",
+    llm_model: str = "gpt-4o",
 ) -> None:
     """Run the full evaluation lifecycle. Called from a BackgroundTask."""
     db = _get_supabase()
@@ -94,7 +100,7 @@ def start_evaluation_job(
             if not document_texts:
                 raise ValueError("No document texts provided for auto generation.")
 
-            generator = QuestionGenerator(model="gpt-4o")
+            generator = QuestionGenerator(provider=llm_provider, model=llm_model)
             for i, text in enumerate(document_texts):
                 _update_job(job_id, progress=f"Generating questions from document {i+1}/{len(document_texts)}...")
                 pairs = generator.generate_from_text(text, num_questions=10)
@@ -127,9 +133,14 @@ def start_evaluation_job(
             neo4j_uri=os.getenv("NEO4J_URI", "bolt://localhost:7687"),
             neo4j_user=os.getenv("NEO4J_USER", "neo4j"),
             neo4j_password=os.getenv("NEO4J_PASSWORD", "password"),
-            llm_model="gpt-4o",
+            llm_provider=llm_provider,
+            llm_model=llm_model,
         )
-        evaluator = RAGEvaluator(search_client=search_client, judge_model="gpt-4o")
+        evaluator = RAGEvaluator(
+            search_client=search_client, 
+            judge_provider=llm_provider, 
+            judge_model=llm_model
+        )
 
         for st in search_types:
             _update_job(job_id, progress=f"Evaluating search type: {st}...")

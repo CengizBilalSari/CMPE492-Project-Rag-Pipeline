@@ -19,12 +19,20 @@ logger = logging.getLogger(__name__)
 class OpenAILLM(LLMInterface):
     """Async OpenAI LLM for retriever use."""
 
-    def __init__(self, model: str = "gpt-4o", temperature: float = 0.0, max_tokens: int = 4096) -> None:
+    def __init__(self, provider: str = "openai", model: str = "gpt-4o", temperature: float = 0.0, max_tokens: int = 4096) -> None:
         super().__init__(model=model, temperature=temperature, max_tokens=max_tokens)
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            raise ValueError("OPENAI_API_KEY environment variable is not set.")
-        self._client = AsyncOpenAI(api_key=api_key, max_retries=0)
+        self.provider = provider
+        
+        if self.provider == "lmstudio":
+            base_url = os.getenv("LMSTUDIO_BASE_URL", "").rstrip("/")
+            if not base_url:
+                raise ValueError("LMSTUDIO_BASE_URL environment variable is not set.")
+            self.base_url = base_url
+        else:
+            api_key = os.getenv("OPENAI_API_KEY")
+            if not api_key:
+                raise ValueError("OPENAI_API_KEY environment variable is not set.")
+            self._client = AsyncOpenAI(api_key=api_key, max_retries=0)
 
     async def ainvoke(self, prompt: str, system_prompt=None) -> str:
         messages: list[dict] = []
@@ -34,20 +42,40 @@ class OpenAILLM(LLMInterface):
 
         start = time.time()
 
-        async def _call():
-            return await self._client.chat.completions.create(
-                model=self.model, messages=messages,
-                temperature=self.temperature, max_tokens=self.max_tokens,
-            )
+        if self.provider == "lmstudio":
+            import httpx
+            payload = {
+                "model": self.model,
+                "messages": messages,
+                "temperature": 0.7 if self.temperature == 0.0 else self.temperature,
+                "max_tokens": self.max_tokens if self.max_tokens > 0 else 4096,
+            }
+            async def _call():
+                endpoint = self.base_url if self.base_url.endswith("/chat/completions") else f"{self.base_url}/chat/completions"
+                async with httpx.AsyncClient() as client:
+                    resp = await client.post(endpoint, json=payload, timeout=180.0)
+                    resp.raise_for_status()
+                    return resp.json()
 
-        response = await self._execute_with_retry("OpenAI", _call)
-        duration = time.time() - start
+            response = await self._execute_with_retry("LMStudio", _call)
+            duration = time.time() - start
+            content = response["choices"][0]["message"]["content"] or ""
+            pt = response.get("usage", {}).get("prompt_tokens", 0)
+            ct = response.get("usage", {}).get("completion_tokens", 0)
+        else:
+            async def _call():
+                return await self._client.chat.completions.create(
+                    model=self.model, messages=messages,
+                    temperature=self.temperature, max_tokens=self.max_tokens,
+                )
 
-        content = response.choices[0].message.content or ""
-        pt = getattr(response.usage, "prompt_tokens", 0) if response.usage else 0
-        ct = getattr(response.usage, "completion_tokens", 0) if response.usage else 0
+            response = await self._execute_with_retry("OpenAI", _call)
+            duration = time.time() - start
+            content = response.choices[0].message.content or ""
+            pt = getattr(response.usage, "prompt_tokens", 0) if response.usage else 0
+            ct = getattr(response.usage, "completion_tokens", 0) if response.usage else 0
+
         self._update_and_log_usage(pt, ct, duration)
-
         return content
 
 
@@ -83,6 +111,7 @@ class GraphRAGSearchClient:
         neo4j_user: str,
         neo4j_password: str,
         neo4j_database: str = "neo4j",
+        llm_provider: str = "openai",
         llm_model: str = "gpt-4o",
         embedding_model: str = "all-MiniLM-L6-v2",
     ) -> None:
@@ -90,6 +119,7 @@ class GraphRAGSearchClient:
         self._neo4j_user = neo4j_user
         self._neo4j_password = neo4j_password
         self._neo4j_database = neo4j_database
+        self._llm_provider = llm_provider
         self._llm_model = llm_model
         self._embedding_model = embedding_model
 
@@ -111,7 +141,7 @@ class GraphRAGSearchClient:
         }
 
     async def _search(self, question: str, mode: str):
-        llm = OpenAILLM(model=self._llm_model)
+        llm = OpenAILLM(provider=self._llm_provider, model=self._llm_model)
         driver = neo4j.GraphDatabase.driver(
             self._neo4j_uri, auth=(self._neo4j_user, self._neo4j_password),
         )

@@ -57,12 +57,19 @@ Return ONLY a JSON object with this exact structure:
 
 
 class LLMJudge:
-    def __init__(self, model: str = "gpt-4o"):
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            raise ValueError("Missing OPENAI_API_KEY in .env file")
-        self.client = OpenAI(api_key=api_key)
+    def __init__(self, provider: str = "openai", model: str = "gpt-4o"):
+        self.provider = provider
         self.model = model
+        
+        if self.provider == "lmstudio":
+            self.base_url = os.getenv("LMSTUDIO_BASE_URL")
+            if not self.base_url:
+                raise ValueError("Missing LMSTUDIO_BASE_URL in .env file for lmstudio provider")
+        else:
+            api_key = os.getenv("OPENAI_API_KEY")
+            if not api_key:
+                raise ValueError("Missing OPENAI_API_KEY in .env file")
+            self.client = OpenAI(api_key=api_key)
 
     def evaluate(
         self,
@@ -79,19 +86,47 @@ class LLMJudge:
             f"**Retrieved Contexts:**\n{contexts_str}"
         )
 
-        resp = self.client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": JUDGE_SYSTEM_PROMPT},
-                {"role": "user", "content": user_msg},
-            ],
-            response_format={"type": "json_object"},
-        )
-        raw = resp.choices[0].message.content
+        if self.provider == "lmstudio":
+            import httpx
+            payload = {
+                "model": self.model,
+                "messages": [
+                    {"role": "system", "content": JUDGE_SYSTEM_PROMPT},
+                    {"role": "user", "content": user_msg},
+                ],
+                "temperature": 0.0,
+                "max_tokens": 2048
+            }
+            res = httpx.post(self.base_url, json=payload, timeout=120.0)
+            res.raise_for_status()
+            raw = res.json()["choices"][0]["message"]["content"] or ""
+        else:
+            resp = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": JUDGE_SYSTEM_PROMPT},
+                    {"role": "user", "content": user_msg},
+                ],
+                response_format={"type": "json_object"}
+            )
+            raw = resp.choices[0].message.content or ""
+        import re
+        clean = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
+        if clean.startswith("```"):
+            clean = clean.split("\n", 1)[1].rsplit("```", 1)[0]
+            
         try:
-            data = json.loads(raw)
+            data = json.loads(clean)
         except json.JSONDecodeError:
-            data = {}
+            match = re.search(r"\{.*\}", clean, flags=re.DOTALL)
+            if match:
+                try:
+                    data = json.loads(match.group(0))
+                except json.JSONDecodeError as e:
+                    logger.warning(f"Failed to parse fallback JSON: {e}")
+                    data = {}
+            else:
+                data = {}
 
         ac = data.get("answer_correctness", {})
         cr = data.get("context_relevance", {})
@@ -109,10 +144,11 @@ class RAGEvaluator:
     def __init__(
         self,
         search_client: GraphRAGSearchClient,
+        judge_provider: str = "openai",
         judge_model: str = "gpt-4o",
     ):
         self._search_client = search_client
-        self._judge = LLMJudge(model=judge_model)
+        self._judge = LLMJudge(provider=judge_provider, model=judge_model)
 
     def run(self, qa_rows: List[Dict], search_type: str) -> List[EvalRow]:
         eval_rows: List[EvalRow] = []

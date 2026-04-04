@@ -24,6 +24,9 @@ async def start_evaluation(
     background_tasks: BackgroundTasks,
     search_types: str = Form(...),
     question_source: str = Form(...),
+    llm_provider: str = Form("lmstudio"),
+    llm_model: str = Form("gpt-4o"),
+    doc_id: Optional[str] = Form(None),
     x_user_id: str = Header(..., alias="X-User-Id"),
     file: Optional[UploadFile] = File(None),
 ):
@@ -65,7 +68,11 @@ async def start_evaluation(
 
         client = create_client(supabase_url, supabase_key)
         # Fetch only this user's documents
-        docs_resp = client.table("documents").select("storage_path").eq("user_id", x_user_id).execute()
+        query = client.table("documents").select("storage_path").eq("user_id", x_user_id)
+        if doc_id:
+            query = query.eq("id", doc_id)
+        
+        docs_resp = query.execute()
         docs = docs_resp.data or []
         if not docs:
             raise HTTPException(status_code=400, detail="No documents found for this user.")
@@ -88,6 +95,7 @@ async def start_evaluation(
         user_id=x_user_id,
         search_types=types_list,
         question_source=question_source,
+        document_id=doc_id,
     )
 
     background_tasks.add_task(
@@ -97,6 +105,8 @@ async def start_evaluation(
         question_source=question_source,
         uploaded_csv_bytes=uploaded_csv_bytes,
         document_texts=document_texts,
+        llm_provider=llm_provider,
+        llm_model=llm_model,
     )
 
     return {"job_id": job_id, "status": "pending"}
