@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { startEvaluation, getEvalStatus, getEvalResults, getDocuments } from "../api";
+import { exportEvalResults } from "../utils/exportCsv";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -358,10 +359,17 @@ export default function Evaluation() {
         <div className="card">
           <div className="card-header">
             <div className="card-icon">📈</div>
-            <div>
+            <div style={{ flex: 1 }}>
               <h3>Results</h3>
               <div className="card-subtitle">Comparing {results.length} search strategies</div>
             </div>
+            <button 
+              className="btn btn-secondary" 
+              onClick={() => exportEvalResults(results)}
+              style={{ fontSize: 13, height: 32 }}
+            >
+              ⬇️ Export CSV
+            </button>
           </div>
 
           <div className="chart-grid">
