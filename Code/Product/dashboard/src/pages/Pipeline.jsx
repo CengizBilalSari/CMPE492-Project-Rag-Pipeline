@@ -54,6 +54,7 @@ export default function Pipeline() {
   const [chunker, setChunker] = useState("recursive");
   const [chunkSize, setChunkSize] = useState(512);
   const [overlap, setOverlap] = useState(50);
+  const [useLlmRes, setUseLlmRes] = useState(true);
   const [logs, setLogs] = useState([]);
   const [running, setRunning] = useState(false);
   const [done, setDone] = useState(false);
@@ -96,6 +97,7 @@ export default function Pipeline() {
       config: {
         llm: { provider, model },
         chunking: { strategy: chunker, chunk_size: chunkSize, overlap },
+        entity_resolution: { use_llm: useLlmRes },
       },
     };
 
@@ -222,6 +224,25 @@ export default function Pipeline() {
               min={0} max={500}
               onChange={(e) => setOverlap(Number(e.target.value))}
             />
+          </div>
+        </div>
+
+        <div className="form-row" style={{ marginBottom: 20 }}>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label>Entity Resolution</label>
+            <div className="checkbox-group mt-16" style={{ marginTop: 8 }}>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={useLlmRes}
+                  onChange={(e) => setUseLlmRes(e.target.checked)}
+                />
+                🤖 Use LLM Verification
+              </label>
+            </div>
+            <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 8 }}>
+              Unchecking this skips the LLM deduplication check (faster, but less accurate).
+            </div>
           </div>
         </div>
 
