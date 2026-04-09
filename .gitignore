@@ -34,3 +34,6 @@ Code/testing_tools/deep_eval/.deep_eval/.*
 launch.json
 
 Code/venv_lightning
+
+Code/Product/dashboard/node_modules/
+Code/Product/dashboard/package-lock.json

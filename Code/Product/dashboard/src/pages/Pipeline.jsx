@@ -15,6 +15,15 @@ const CHUNKERS = [
   "recursive", "semantic", "propositional",
 ];
 
+const PIPELINE_STEPS = [
+  { id: "chunk",     label: "Chunking",              keywords: ["chunk"] },
+  { id: "extract",   label: "Entity Extraction",      keywords: ["extract"] },
+  { id: "resolve",   label: "Entity Resolution",      keywords: ["resolv"] },
+  { id: "embed",     label: "Embedding",              keywords: ["embed"] },
+  { id: "community", label: "Community Detection",    keywords: ["community"] },
+  { id: "summarize", label: "Summarization",          keywords: ["summar"] },
+];
+
 // Known pipeline step keywords → classify log line appearance
 function classifyLog(text) {
   const t = text.toLowerCase();
@@ -45,9 +54,12 @@ export default function Pipeline() {
   const [chunker, setChunker] = useState("recursive");
   const [chunkSize, setChunkSize] = useState(512);
   const [overlap, setOverlap] = useState(50);
+  const [useLlmRes, setUseLlmRes] = useState(true);
   const [logs, setLogs] = useState([]);
   const [running, setRunning] = useState(false);
   const [done, setDone] = useState(false);
+  const [activeStep, setActiveStep] = useState(-1);
+  const [completedSteps, setCompletedSteps] = useState(new Set());
   const wsRef = useRef(null);
   const logEndRef = useRef(null);
 
@@ -74,6 +86,8 @@ export default function Pipeline() {
     setLogs([]);
     setDone(false);
     setRunning(true);
+    setActiveStep(-1);
+    setCompletedSteps(new Set());
     pushLog("Connecting to pipeline…", "log-dim");
 
     const payload = {
@@ -83,6 +97,7 @@ export default function Pipeline() {
       config: {
         llm: { provider, model },
         chunking: { strategy: chunker, chunk_size: chunkSize, overlap },
+        entity_resolution: { use_llm: useLlmRes },
       },
     };
 
@@ -98,9 +113,23 @@ export default function Pipeline() {
 
         pushLog(text, isError ? "log-error" : "");
 
+        // Update step progress
+        const lower = text.toLowerCase();
+        PIPELINE_STEPS.forEach((step, idx) => {
+          if (step.keywords.some((kw) => lower.includes(kw))) {
+            if (lower.includes("complete") || lower.includes("skipped")) {
+              setCompletedSteps((prev) => new Set([...prev, idx]));
+              setActiveStep((prev) => (prev <= idx ? idx + 1 : prev));
+            } else {
+              setActiveStep(idx);
+            }
+          }
+        });
+
         if (isComplete || isError) {
           setRunning(false);
           setDone(!isError);
+          if (!isError) setCompletedSteps(new Set(PIPELINE_STEPS.map((_, i) => i)));
         }
       },
       () => {
@@ -198,6 +227,25 @@ export default function Pipeline() {
           </div>
         </div>
 
+        <div className="form-row" style={{ marginBottom: 20 }}>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label>Entity Resolution</label>
+            <div className="checkbox-group mt-16" style={{ marginTop: 8 }}>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={useLlmRes}
+                  onChange={(e) => setUseLlmRes(e.target.checked)}
+                />
+                🤖 Use LLM Verification
+              </label>
+            </div>
+            <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 8 }}>
+              Unchecking this skips the LLM deduplication check (faster, but less accurate).
+            </div>
+          </div>
+        </div>
+
         {/* Summary pill */}
         {selectedDoc && (
           <div className="stat-row" style={{ marginBottom: 16 }}>
@@ -236,6 +284,40 @@ export default function Pipeline() {
           )}
         </div>
       </div>
+
+      {/* Pipeline Step Progress */}
+      {(running || done) && (
+        <div className="card" style={{ padding: 20 }}>
+          <div className="card-header" style={{ marginBottom: 12 }}>
+            <div className="card-icon">📋</div>
+            <div>
+              <h3>Pipeline Progress</h3>
+              <div className="card-subtitle">
+                {done
+                  ? "All steps completed"
+                  : activeStep >= 0
+                  ? `Step ${Math.min(activeStep + 1, PIPELINE_STEPS.length)}/${PIPELINE_STEPS.length}`
+                  : "Initializing…"}
+              </div>
+            </div>
+          </div>
+          <div className="pipeline-steps">
+            {PIPELINE_STEPS.map((step, idx) => {
+              const isDone = completedSteps.has(idx);
+              const isActive = running && activeStep === idx && !isDone;
+              const cls = isDone ? "done" : isActive ? "active" : "";
+              return (
+                <div key={step.id} className={`step-item ${cls}`}>
+                  <div className="step-bullet">
+                    {isDone ? "✓" : isActive ? "⚙" : idx + 1}
+                  </div>
+                  <div className="step-label">{step.label}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Terminal log */}
       {logs.length > 0 && (

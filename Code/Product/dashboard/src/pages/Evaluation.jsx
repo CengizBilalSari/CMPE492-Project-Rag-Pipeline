@@ -295,16 +295,16 @@ export default function Evaluation() {
             <div className="radio-opt-desc">LLM generates questions from your documents</div>
           </div>
           <div
-            className={`radio-opt ${questionSrc === "csv" ? "selected" : ""}`}
-            onClick={() => setQuestionSrc("csv")}
+            className={`radio-opt ${questionSrc === "custom" ? "selected" : ""}`}
+            onClick={() => setQuestionSrc("custom")}
           >
-            <input type="radio" readOnly checked={questionSrc === "csv"} />
+            <input type="radio" readOnly checked={questionSrc === "custom"} />
             <div className="radio-opt-label">📂 Upload CSV</div>
-            <div className="radio-opt-desc">question, expected_answer columns</div>
+            <div className="radio-opt-desc">question, ground_truth_answer columns</div>
           </div>
         </div>
 
-        {questionSrc === "csv" ? (
+        {questionSrc === "custom" ? (
           <div
             className="file-drop"
             onClick={() => fileRef.current.click()}
@@ -314,8 +314,7 @@ export default function Evaluation() {
             <div className="file-drop-text">
               {file ? `✅ ${file.name}` : "Click to select a CSV file"}
             </div>
-            <div className="file-drop-sub">Requires: question, expected_answer columns</div>
-            <p>Upload a CSV file containing <code>question</code> and <code>ground_truth_answer</code> columns.</p>
+            <div className="file-drop-sub">Requires: question, ground_truth_answer columns</div>
             <input
               ref={fileRef}
               type="file"
