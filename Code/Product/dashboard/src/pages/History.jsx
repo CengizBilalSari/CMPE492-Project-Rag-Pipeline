@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { getPipelineRuns, getEvaluationJobs, getEvaluationJobDetails } from "../api";
+import { exportEvalResults, exportEvalDetails } from "../utils/exportCsv";
 
 function Badge({ status }) {
   const s = (status || "").toLowerCase();
@@ -302,7 +303,16 @@ export default function History() {
               <>
                 {jobDetails.results && jobDetails.results.length > 0 && (
                   <div className="modal-section">
-                    <h4>Aggregated Results</h4>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                      <h4 style={{ margin: 0 }}>Aggregated Results</h4>
+                      <button 
+                        className="btn btn-secondary" 
+                        onClick={() => exportEvalResults(jobDetails.results)}
+                        style={{ fontSize: 12, height: 28, padding: "0 12px" }}
+                      >
+                        ⬇️ CSV
+                      </button>
+                    </div>
                     <div className="table-wrap">
                       <table>
                         <thead>
@@ -332,7 +342,16 @@ export default function History() {
 
                 {jobDetails.qa_pairs && jobDetails.qa_pairs.length > 0 && (
                   <div className="modal-section" style={{ marginTop: 32 }}>
-                    <h4>Questions Evaluated ({jobDetails.qa_pairs.length})</h4>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                      <h4 style={{ margin: 0 }}>Questions Evaluated ({jobDetails.qa_pairs.length})</h4>
+                      <button 
+                        className="btn btn-secondary" 
+                        onClick={() => exportEvalDetails(jobDetails.qa_pairs)}
+                        style={{ fontSize: 12, height: 28, padding: "0 12px" }}
+                      >
+                        ⬇️ Export Details CSV
+                      </button>
+                    </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                       {jobDetails.qa_pairs.map((qa, index) => (
                         <div key={qa.id} className="card" style={{ padding: 16, marginBottom: 0 }}>
