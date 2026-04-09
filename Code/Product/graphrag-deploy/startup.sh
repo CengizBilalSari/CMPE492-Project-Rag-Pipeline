@@ -51,35 +51,59 @@ if ! nvidia-smi > /dev/null 2>&1; then
     exit 1
 fi
 
-# Install vLLM
+# Install Docker (if not already present)
 echo ""
-echo "Installing vLLM..."
-pip install --upgrade pip
-pip install vllm
-
-echo "  ✓ vLLM installed"
-
-# Kill any existing vLLM process
-if [ -f /tmp/vllm.pid ]; then
-    OLD_PID=$(cat /tmp/vllm.pid)
-    kill "${OLD_PID}" 2>/dev/null || true
-    sleep 2
+echo "Setting up Docker..."
+if ! command -v docker &> /dev/null; then
+    curl -fsSL https://get.docker.com | sh
+    echo "  ✓ Docker installed"
+else
+    echo "  ✓ Docker already installed"
 fi
 
-# Start vLLM server
+# Ensure NVIDIA Container Toolkit is available
+if ! dpkg -l | grep -q nvidia-container-toolkit; then
+    distribution=$(. /etc/os-release; echo $ID$VERSION_ID)
+    curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+    curl -s -L "https://nvidia.github.io/libnvidia-container/${distribution}/libnvidia-container.list" | \
+        sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+        tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+    apt-get update && apt-get install -y nvidia-container-toolkit
+    nvidia-ctk runtime configure --runtime=docker
+    systemctl restart docker
+    echo "  ✓ NVIDIA Container Toolkit installed"
+else
+    echo "  ✓ NVIDIA Container Toolkit already installed"
+fi
+
+echo "  ✓ Docker ready"
+
+# Kill any existing vLLM container
 echo ""
-echo "Starting vLLM server..."
-nohup vllm serve "${MODEL}" \
+echo "Cleaning up old containers..."
+docker rm -f vllm-server 2>/dev/null || true
+
+# Start vLLM server via Docker
+echo ""
+echo "Starting vLLM server (Docker)..."
+docker run -d \
+    --name vllm-server \
+    --gpus all \
+    -p "${VLLM_PORT}:${VLLM_PORT}" \
+    -e "HF_TOKEN=${HF_TOKEN}" \
+    --shm-size=4g \
+    vllm/vllm-openai:latest \
+    --model "${MODEL}" \
     --port "${VLLM_PORT}" \
     --max-model-len "${MAX_MODEL_LEN}" \
     --gpu-memory-utilization "${GPU_MEM_UTIL}" \
     --dtype "${DTYPE}" \
     --tensor-parallel-size 1 \
     --host 0.0.0.0 \
-    > /var/log/vllm-server.log 2>&1 &
+    --enable-prefix-caching \
+    --max-num-seqs 32
 
-echo $! > /tmp/vllm.pid
-echo "  ✓ vLLM started (PID: $(cat /tmp/vllm.pid))"
+echo "  ✓ vLLM container started"
 
 # Wait for health
 echo ""

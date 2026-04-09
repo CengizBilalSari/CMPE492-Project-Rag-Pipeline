@@ -19,14 +19,12 @@ class VllmLLM(LLMInterface):
 
     def __init__(
         self,
-        model: str = "meta-llama/Llama-3.1-8B-Instruct",
+        model: str = "Qwen/Qwen2.5-7B-Instruct",
         temperature: float = 0.0,
         max_tokens: int = 4096,
-        enable_thinking: bool = False, # <-- ADDED: Toggle for Qwen reasoning
     ) -> None:
         super().__init__(model=model, temperature=temperature, max_tokens=max_tokens)
-        self.enable_thinking = enable_thinking # Store the toggle state
-        
+
         try:
             from openai import AsyncOpenAI
         except ImportError as exc:
@@ -44,7 +42,7 @@ class VllmLLM(LLMInterface):
         self._client = AsyncOpenAI(
             api_key="dummy",
             base_url=api_base,
-            max_retries=0,
+            max_retries=3,
         )
 
     async def ainvoke(
@@ -55,43 +53,25 @@ class VllmLLM(LLMInterface):
         messages = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
-        if not self.enable_thinking:
-            # Qwen3 soft-switch: append /no_think so the model skips reasoning natively
-            prompt = f"{prompt}\n/no_think"
-
         messages.append({"role": "user", "content": prompt})
 
         import time
         start_time = time.time()
 
-
         async def _call():
-            # Build the base arguments
             call_kwargs = {
                 "model": self.model,
                 "messages": messages,
                 "temperature": self.temperature,
                 "max_tokens": self.max_tokens,
             }
-            
-            # vLLM's OpenAI-compatible API does not natively support disabling thought 
-            # tags via the payload for Qwen models, so we will post-process it instead.
             return await self._client.chat.completions.create(**call_kwargs)
 
-        try:
-            response = await self._execute_with_retry("vLLM", _call)
-        except Exception as e:
-            print(f"❌ [DEBUG] Request failed for URL {full_url}. Error: {e}")
-            raise e
+        response = await self._execute_with_retry("vLLM", _call)
 
         duration_sec = time.time() - start_time
 
         content = response.choices[0].message.content or ""
-        
-        # If thinking is disabled, manually strip out the <think> blocks
-        if not self.enable_thinking:
-            import re
-            content = re.sub(r"<think>.*?</think>\n*", "", content, flags=re.DOTALL).strip()
 
         prompt_tokens = 0
         completion_tokens = 0
@@ -101,5 +81,5 @@ class VllmLLM(LLMInterface):
 
         self._update_and_log_usage(prompt_tokens, completion_tokens, duration_sec)
 
-        logger.info("vLLM response (%s tokens): %s...", len(content), content)
+        logger.debug("vLLM response (%s tokens): %s...", len(content), content[:200])
         return content
