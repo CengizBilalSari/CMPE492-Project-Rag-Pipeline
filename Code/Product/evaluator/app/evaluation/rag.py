@@ -131,18 +131,22 @@ class GraphRAGSearchClient:
             raise ValueError(f"Unknown search_type '{search_type}'. Choose from: {VALID_SEARCH_TYPES}")
 
         t0 = time.perf_counter()
-        answer, contexts = asyncio.run(self._search(question, search_type))
+        answer, contexts, llm_ref = asyncio.run(self._search(question, search_type))
         latency_ms = (time.perf_counter() - t0) * 1000
+
+        prompt_tokens = getattr(llm_ref, "total_prompt_tokens", 0) if llm_ref else 0
+        completion_tokens = getattr(llm_ref, "total_completion_tokens", 0) if llm_ref else 0
 
         return {
             "answer": answer or "",
             "retrieved_contexts": contexts,
             "latency_ms": latency_ms,
-            "prompt_tokens": 0,
-            "completion_tokens": 0,
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
         }
 
     async def _search(self, question: str, mode: str):
+        """Returns (answer, contexts, llm) — llm is kept so caller can read token counters."""
         llm = OpenAILLM(provider=self._llm_provider, model=self._llm_model)
         driver = neo4j.GraphDatabase.driver(
             self._neo4j_uri, auth=(self._neo4j_user, self._neo4j_password),
@@ -154,11 +158,11 @@ class GraphRAGSearchClient:
         try:
             if mode == "no-retriever":
                 answer = await llm.ainvoke(question)
-                return answer, []
+                return answer, [], llm
 
             if mode == "rag":
                 answer, contexts = await self._baseline_rag(driver, llm, embed_fn, question)
-                return answer, contexts
+                return answer, contexts, llm
 
             if mode == "local":
                 retriever = LocalRetriever(
@@ -210,7 +214,7 @@ class GraphRAGSearchClient:
                 answer = await llm.ainvoke(question)
                 contexts = []
 
-            return answer, contexts
+            return answer, contexts, llm
 
         finally:
             driver.close()

@@ -272,7 +272,11 @@ class GraphRAGPipeline:
         prompt_tokens = getattr(self.llm, "total_prompt_tokens", 0)
         completion_tokens = getattr(self.llm, "total_completion_tokens", 0)
         total_requests = getattr(self.llm, "total_requests", 0)
-        lines.append(f"  LLM: {total_requests} requests, {prompt_tokens + completion_tokens} tokens")
+        lines.append(
+            f"  LLM: {total_requests} requests | "
+            f"Input: {prompt_tokens} tokens | Output: {completion_tokens} tokens | "
+            f"Total: {prompt_tokens + completion_tokens} tokens"
+        )
 
         with self._driver.session(database=self.config.neo4j.database) as session:
             doc_count = session.run("MATCH (d:Document) RETURN count(d) as c").single()["c"]

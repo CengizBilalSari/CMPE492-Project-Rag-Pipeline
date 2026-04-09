@@ -20,6 +20,8 @@ class EvaluationJobStatus(BaseModel):
 class EvaluationResultMetrics(BaseModel):
     search_type: str
     token_cost: int
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
     time_per_request: float
     answer_accuracy: float
     context_relevance: float

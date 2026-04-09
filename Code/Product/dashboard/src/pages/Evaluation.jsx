@@ -369,8 +369,7 @@ export default function Evaluation() {
             {[
               { key: "answer_accuracy", title: "Answer Accuracy (0–10)" },
               { key: "context_relevance", title: "Context Relevance (0–10)" },
-              { key: "time_per_request", title: "Avg Time per Request (s)" },
-              { key: "token_cost", title: "Total Token Cost" },
+              { key: "time_per_request", title: "Avg Time per Request (ms)" },
             ].map(({ key, title }) => (
               <div className="chart-card" key={key}>
                 <Bar
@@ -379,6 +378,38 @@ export default function Evaluation() {
                 />
               </div>
             ))}
+            <div className="chart-card">
+              <Bar
+                data={{
+                  labels,
+                  datasets: [
+                    {
+                      label: "Input Tokens",
+                      data: results.map((r) => r.prompt_tokens),
+                      backgroundColor: "rgba(34,211,238,0.7)",
+                      borderColor: "rgba(34,211,238,1)",
+                      borderWidth: 1.5,
+                      borderRadius: 6,
+                    },
+                    {
+                      label: "Output Tokens",
+                      data: results.map((r) => r.completion_tokens),
+                      backgroundColor: "rgba(139,92,246,0.7)",
+                      borderColor: "rgba(139,92,246,1)",
+                      borderWidth: 1.5,
+                      borderRadius: 6,
+                    },
+                  ],
+                }}
+                options={{
+                  ...chartOpts("Token Usage (Input / Output)"),
+                  plugins: {
+                    ...chartOpts("Token Usage (Input / Output)").plugins,
+                    legend: { display: true, labels: { color: "#94a3b8", font: { size: 11 } } },
+                  },
+                }}
+              />
+            </div>
           </div>
         </div>
       )}

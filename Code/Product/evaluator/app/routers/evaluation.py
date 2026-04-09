@@ -138,6 +138,8 @@ async def get_evaluation_results(job_id: str):
         EvaluationResultMetrics(
             search_type=r["search_type"],
             token_cost=r["token_cost"],
+            prompt_tokens=r.get("prompt_tokens", 0),
+            completion_tokens=r.get("completion_tokens", 0),
             time_per_request=r["time_per_request"],
             answer_accuracy=r["answer_accuracy"],
             context_relevance=r["context_relevance"],

@@ -51,6 +51,8 @@ CREATE TABLE evaluation_results (
   job_id            UUID NOT NULL REFERENCES evaluation_jobs(id) ON DELETE CASCADE,
   search_type       TEXT NOT NULL,
   token_cost        INT NOT NULL DEFAULT 0,
+  prompt_tokens     INT NOT NULL DEFAULT 0,
+  completion_tokens INT NOT NULL DEFAULT 0,
   time_per_request  DOUBLE PRECISION NOT NULL DEFAULT 0,
   answer_accuracy   DOUBLE PRECISION NOT NULL DEFAULT 0,
   context_relevance DOUBLE PRECISION NOT NULL DEFAULT 0

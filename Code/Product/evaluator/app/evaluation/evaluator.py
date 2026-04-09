@@ -86,6 +86,9 @@ class LLMJudge:
             f"**Retrieved Contexts:**\n{contexts_str}"
         )
 
+        judge_prompt_tokens = 0
+        judge_completion_tokens = 0
+
         if self.provider == "lmstudio":
             import httpx
             payload = {
@@ -99,7 +102,11 @@ class LLMJudge:
             }
             res = httpx.post(self.base_url, json=payload, timeout=120.0)
             res.raise_for_status()
-            raw = res.json()["choices"][0]["message"]["content"] or ""
+            res_json = res.json()
+            raw = res_json["choices"][0]["message"]["content"] or ""
+            usage = res_json.get("usage", {})
+            judge_prompt_tokens = usage.get("prompt_tokens", 0)
+            judge_completion_tokens = usage.get("completion_tokens", 0)
         else:
             resp = self.client.chat.completions.create(
                 model=self.model,
@@ -110,6 +117,9 @@ class LLMJudge:
                 response_format={"type": "json_object"}
             )
             raw = resp.choices[0].message.content or ""
+            if resp.usage:
+                judge_prompt_tokens = resp.usage.prompt_tokens or 0
+                judge_completion_tokens = resp.usage.completion_tokens or 0
         import re
         clean = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
         if clean.startswith("```"):
@@ -135,6 +145,8 @@ class LLMJudge:
             "answer_correctness_reason": ac.get("reason", ""),
             "context_relevance_score": _safe_float(cr.get("score")),
             "context_relevance_reason": cr.get("reason", ""),
+            "judge_prompt_tokens": judge_prompt_tokens,
+            "judge_completion_tokens": judge_completion_tokens,
         }
 
 
@@ -173,6 +185,13 @@ class RAGEvaluator:
                 retrieved_contexts=contexts,
             )
 
+            search_pt = result.get("prompt_tokens", 0)
+            search_ct = result.get("completion_tokens", 0)
+            judge_pt = scores.get("judge_prompt_tokens", 0)
+            judge_ct = scores.get("judge_completion_tokens", 0)
+            total_pt = search_pt + judge_pt
+            total_ct = search_ct + judge_ct
+
             er = EvalRow(
                 question=question,
                 ground_truth_answer=ground_truth,
@@ -184,9 +203,9 @@ class RAGEvaluator:
                 context_relevance_score=scores["context_relevance_score"],
                 context_relevance_reason=scores["context_relevance_reason"],
                 latency_ms=result.get("latency_ms", 0),
-                prompt_tokens=result.get("prompt_tokens", 0),
-                completion_tokens=result.get("completion_tokens", 0),
-                total_tokens=result.get("prompt_tokens", 0) + result.get("completion_tokens", 0),
+                prompt_tokens=total_pt,
+                completion_tokens=total_ct,
+                total_tokens=total_pt + total_ct,
             )
             eval_rows.append(er)
 
@@ -200,6 +219,8 @@ class RAGEvaluator:
             "avg_context_relevance": sum((r.context_relevance_score or 0) for r in rows) / n,
             "avg_latency_ms": sum(r.latency_ms for r in rows) / n,
             "total_tokens": sum(r.total_tokens for r in rows),
+            "total_prompt_tokens": sum(r.prompt_tokens for r in rows),
+            "total_completion_tokens": sum(r.completion_tokens for r in rows),
             "num_questions": len(rows),
         }
 

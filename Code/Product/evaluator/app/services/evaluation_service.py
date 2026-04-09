@@ -154,6 +154,8 @@ def start_evaluation_job(
                 "job_id": job_id,
                 "search_type": st,
                 "token_cost": metrics["total_tokens"],
+                "prompt_tokens": metrics["total_prompt_tokens"],
+                "completion_tokens": metrics["total_completion_tokens"],
                 "time_per_request": metrics["avg_latency_ms"],
                 "answer_accuracy": metrics["avg_answer_correctness"],
                 "context_relevance": metrics["avg_context_relevance"],
