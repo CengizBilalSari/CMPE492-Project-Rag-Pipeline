@@ -131,15 +131,15 @@ class GraphRAGSearchClient:
             raise ValueError(f"Unknown search_type '{search_type}'. Choose from: {VALID_SEARCH_TYPES}")
 
         t0 = time.perf_counter()
-        answer, contexts = asyncio.run(self._search(question, search_type))
+        answer, contexts, prompt_tokens, completion_tokens = asyncio.run(self._search(question, search_type))
         latency_ms = (time.perf_counter() - t0) * 1000
 
         return {
             "answer": answer or "",
             "retrieved_contexts": contexts,
             "latency_ms": latency_ms,
-            "prompt_tokens": 0,
-            "completion_tokens": 0,
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
         }
 
     async def _search(self, question: str, mode: str):
@@ -154,11 +154,11 @@ class GraphRAGSearchClient:
         try:
             if mode == "no-retriever":
                 answer = await llm.ainvoke(question)
-                return answer, []
+                return answer, [], llm.total_prompt_tokens, llm.total_completion_tokens
 
             if mode == "rag":
                 answer, contexts = await self._baseline_rag(driver, llm, embed_fn, question)
-                return answer, contexts
+                return answer, contexts, llm.total_prompt_tokens, llm.total_completion_tokens
 
             if mode == "local":
                 retriever = LocalRetriever(
@@ -210,7 +210,7 @@ class GraphRAGSearchClient:
                 answer = await llm.ainvoke(question)
                 contexts = []
 
-            return answer, contexts
+            return answer, contexts, llm.total_prompt_tokens, llm.total_completion_tokens
 
         finally:
             driver.close()
