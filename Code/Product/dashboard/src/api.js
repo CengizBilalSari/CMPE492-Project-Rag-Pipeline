@@ -1,26 +1,43 @@
 const PIPELINER_BASE = "";
 const EVALUATOR_BASE = "/eval";
 
-function getUserId() {
-  let uid = localStorage.getItem("graphrag_user_id");
-  if (!uid) {
-    if (typeof crypto !== "undefined" && crypto.randomUUID) {
-      uid = crypto.randomUUID();
-    } else {
-      // Fallback for insecure contexts (non-HTTPS IP addresses)
-      uid = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
-        var r = (Math.random() * 16) | 0,
-          v = c === "x" ? r : (r & 0x3) | 0x8;
-        return v.toString(16);
-      });
-    }
-    localStorage.setItem("graphrag_user_id", uid);
+const CHAT_ID_KEY = "graphrag_chat_id";
+const USERNAME_KEY = "graphrag_username";
+
+export function getChatId() {
+  return localStorage.getItem(CHAT_ID_KEY);
+}
+
+export function getUsername() {
+  return localStorage.getItem(USERNAME_KEY);
+}
+
+export async function login(username) {
+  const res = await fetch(`${PIPELINER_BASE}/api/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username }),
+  });
+  if (!res.ok) {
+    let detail = res.statusText;
+    try { detail = (await res.json()).detail || detail; } catch {}
+    throw new Error(detail);
   }
-  return uid;
+  const data = await res.json();
+  localStorage.setItem(CHAT_ID_KEY, data.chat_id);
+  localStorage.setItem(USERNAME_KEY, data.username);
+  return data;
+}
+
+export function logout() {
+  localStorage.removeItem(CHAT_ID_KEY);
+  localStorage.removeItem(USERNAME_KEY);
 }
 
 function headers(extra = {}) {
-  return { "X-User-Id": getUserId(), ...extra };
+  const chatId = getChatId();
+  if (!chatId) throw new Error("Not logged in.");
+  return { "X-Chat-Id": chatId, ...extra };
 }
 
 // ── Documents ───────────────────────────────────────
@@ -46,7 +63,7 @@ export function connectPipeline(payload, onMessage, onClose) {
   ws.onopen = () => {
     ws.send(
       JSON.stringify({
-        user_id: getUserId(),
+        chat_id: getChatId(),
         ...payload,
       })
     );
@@ -99,8 +116,7 @@ export async function getEvalResults(jobId) {
   return res.json();
 }
 
-// ── History (direct Supabase reads via backend proxy would be ideal,
-//    but for now we expose simple GET endpoints) ─────
+// ── History ─────────────────────────────────────────
 
 export async function getDocuments() {
   const res = await fetch(`${PIPELINER_BASE}/api/history/documents`, {
@@ -133,5 +149,3 @@ export async function getEvaluationJobDetails(jobId) {
   if (!res.ok) return null;
   return res.json();
 }
-
-export { getUserId };

@@ -92,7 +92,7 @@ export default function Pipeline() {
 
     const payload = {
       document_id: docId,
-      doc_title: docs.find((d) => d.id === docId)?.filename || "untitled",
+      doc_title: docs.find((d) => d.id === docId)?.name || "untitled",
       doc_source: "upload",
       config: {
         llm: { provider, model },
@@ -170,7 +170,7 @@ export default function Pipeline() {
               {docs.length === 0 && <option value="">No documents uploaded</option>}
               {docs.map((d) => (
                 <option key={d.id} value={d.id}>
-                  {d.filename}
+                  {d.name}
                 </option>
               ))}
             </select>
@@ -249,7 +249,7 @@ export default function Pipeline() {
         {/* Summary pill */}
         {selectedDoc && (
           <div className="stat-row" style={{ marginBottom: 16 }}>
-            <div className="stat-pill">📄 <span>{selectedDoc.filename}</span></div>
+            <div className="stat-pill">📄 <span>{selectedDoc.name}</span></div>
             <div className="stat-pill">🤖 <span>{provider} / {model}</span></div>
             <div className="stat-pill">✂️ <span>{chunker} · {chunkSize}t · {overlap}o</span></div>
           </div>
@@ -327,7 +327,7 @@ export default function Pipeline() {
             <span className="terminal-dot yellow" />
             <span className="terminal-dot green" />
             <span className="terminal-title" style={{ marginLeft: 8 }}>
-              graphrag-pipeline — {selectedDoc?.filename || "run"}
+              graphrag-pipeline — {selectedDoc?.name || "run"}
             </span>
             <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--text-dim)" }}>
               {logs.length} line{logs.length !== 1 ? "s" : ""}

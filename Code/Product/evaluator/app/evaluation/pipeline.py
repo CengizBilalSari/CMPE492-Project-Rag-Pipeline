@@ -13,11 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class QuestionGenerator:
-    """Generates synthetic QA pairs from document text using an LLM.
-
-    Adapted from the original EvaluationPipeline's generator to accept
-    raw text strings (e.g. fetched from Supabase) instead of file paths.
-    """
+    """Generates synthetic QA pairs from document text using an LLM."""
 
     def __init__(self, provider: str = "openai", model: str = "gpt-4o"):
         self.provider = provider

@@ -109,7 +109,7 @@ export default function History() {
                   {runs.map((r) => (
                     <tr key={r.id} className="clickable-row" onClick={() => setSelectedRun(r)}>
                       <td style={{ fontWeight: 500 }}>
-                        📄 {r.documents?.filename || (
+                        📄 {r.document_name || (
                           <span className="td-mono">{r.document_id?.slice(0, 8)}…</span>
                         )}
                       </td>
@@ -186,7 +186,7 @@ export default function History() {
             <div style={{ marginBottom: 24 }}>
               <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Pipeline Details</h2>
               <p style={{ color: "var(--text-muted)", fontSize: 14 }}>
-                📄 {selectedRun.documents?.filename || selectedRun.document_id}
+                📄 {selectedRun.document_name || selectedRun.document_id}
               </p>
             </div>
 

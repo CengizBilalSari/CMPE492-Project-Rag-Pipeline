@@ -4,8 +4,7 @@ import logging
 
 from fastapi import APIRouter, File, Header, UploadFile, HTTPException
 
-from core.config import SupabaseConfig
-from core.supabase_client import SupabaseDocumentStore
+from core.document_store import DocumentStore
 
 logger = logging.getLogger(__name__)
 
@@ -17,9 +16,9 @@ ALLOWED_CONTENT_TYPES = {"application/pdf", "application/txt", "text/txt", "text
 @router.post("/upload")
 async def upload_document(
     file: UploadFile = File(...),
-    x_user_id: str = Header(..., alias="X-User-Id"),
+    x_chat_id: str = Header(..., alias="X-Chat-Id"),
 ):
-    """Upload a document to Supabase storage and register its metadata."""
+    """Upload a document to local storage and register its metadata in Postgres."""
     if not file.filename:
         raise HTTPException(status_code=400, detail="Filename is required.")
 
@@ -30,11 +29,6 @@ async def upload_document(
             detail=f"Unsupported file type '{content_type}'. Allowed: {', '.join(sorted(ALLOWED_CONTENT_TYPES))}",
         )
 
-    try:
-        store = SupabaseDocumentStore(SupabaseConfig())
-    except ValueError as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
     file_bytes = await file.read()
     if not file_bytes:
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
@@ -43,10 +37,11 @@ async def upload_document(
         content_type = "text/txt"
 
     try:
-        result = store.upload_document(
+        store = DocumentStore()
+        result = store.upload(
             file_bytes=file_bytes,
             filename=file.filename,
-            user_id=x_user_id,
+            chat_id=x_chat_id,
             content_type=content_type,
         )
     except Exception as e:
@@ -54,7 +49,7 @@ async def upload_document(
         raise HTTPException(status_code=500, detail=f"Upload failed: {e}")
 
     return {
-        "id": result["id"],
-        "filename": result["filename"],
-        "storage_path": result["storage_path"],
+        "id": str(result["id"]),
+        "name": result["name"],
+        "path": result["path"],
     }

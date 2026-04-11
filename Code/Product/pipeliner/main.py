@@ -13,6 +13,7 @@ if str(_PACKAGE_ROOT) not in sys.path:
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from api.auth_routes import router as auth_router
 from api.document_routes import router as document_router
 from api.pipeline_routes import router as pipeline_router
 from api.history_routes import router as history_router
@@ -36,6 +37,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_router)
 app.include_router(document_router)
 app.include_router(pipeline_router)
 app.include_router(history_router)

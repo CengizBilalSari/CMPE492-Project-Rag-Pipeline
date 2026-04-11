@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { getUserId } from "../api";
+import { getChatId, getUsername } from "../api";
 
 const NAV = [
   { to: "/",           label: "Documents",  icon: "📄", end: true },
@@ -8,8 +8,9 @@ const NAV = [
   { to: "/history",    label: "History",    icon: "🕑" },
 ];
 
-export default function Sidebar() {
-  const uid = getUserId();
+export default function Sidebar({ onLogout }) {
+  const username = getUsername() || "—";
+  const chatId = getChatId() || "";
   return (
     <nav className="sidebar">
       <div className="sidebar-logo">
@@ -33,9 +34,12 @@ export default function Sidebar() {
 
       <div className="sidebar-footer">
         <div className="user-id">
-          <strong>Session ID</strong>
-          {uid.slice(0, 8)}…{uid.slice(-4)}
+          <strong>{username}</strong>
+          {chatId ? `${chatId.slice(0, 8)}…${chatId.slice(-4)}` : ""}
         </div>
+        <button className="btn btn-outline" onClick={onLogout} style={{ marginTop: 8, width: "100%" }}>
+          Log out
+        </button>
       </div>
     </nav>
   );

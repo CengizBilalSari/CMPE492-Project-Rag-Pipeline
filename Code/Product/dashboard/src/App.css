@@ -1142,3 +1142,47 @@ tbody tr:last-child td {
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Login ─────────────────────────────────────────── */
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at top, var(--bg-2) 0%, var(--bg) 60%);
+  padding: 24px;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 32px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+
+.login-logo h1 {
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0 0 4px;
+  background: linear-gradient(90deg, var(--accent), var(--cyan));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.login-logo p {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin: 0 0 24px;
+}
+
+.login-hint {
+  margin-top: 20px;
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: center;
+  line-height: 1.6;
+}

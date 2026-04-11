@@ -7,8 +7,8 @@ import traceback
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from core.config import PipelineConfig, SupabaseConfig
-from core.supabase_client import SupabaseDocumentStore
+from core.config import PipelineConfig
+from core.document_store import DocumentStore
 from services.graph_pipeline import GraphRAGPipeline
 
 logger = logging.getLogger(__name__)
@@ -23,20 +23,13 @@ async def run_pipeline(ws: WebSocket):
 
     Expects a JSON message on connect:
     {
-        "user_id": "...",
-        "document_id": "...",       // required — used to fetch the file from Supabase
-        "document_text": "...",     // optional — if provided, skips Supabase fetch
+        "chat_id": "...",
+        "document_id": "...",       // required — used to fetch the file from local storage
+        "document_text": "...",     // optional — if provided, skips the storage fetch
         "doc_title": "...",
         "doc_source": "...",
-        "config": {                 // optional overrides
-            "llm": {"provider": "lmstudio", "model": "google/gemma-4-31b"},
-            "chunking": {"strategy": "recursive", "chunk_size": 1000}
-        }
+        "config": { ... }
     }
-
-    Streams back:
-    {"type": "status", "message": "Step 1/6: Chunking..."}
-    {"type": "error",  "message": "..."}
     """
     await ws.accept()
 
@@ -44,36 +37,31 @@ async def run_pipeline(ws: WebSocket):
         raw = await ws.receive_text()
         payload = json.loads(raw)
 
-        user_id = payload.get("user_id", "")
+        chat_id = payload.get("chat_id", "")
         document_id = payload.get("document_id", "")
         document_text = payload.get("document_text", "")
         doc_title = payload.get("doc_title", "")
         doc_source = payload.get("doc_source", "")
 
-        # ── Fetch document from Supabase if text not provided directly ──────────
+        if not chat_id:
+            await ws.send_json({"type": "error", "message": "chat_id is required."})
+            await ws.close()
+            return
+
         if not document_text and document_id:
             try:
-                store = SupabaseDocumentStore(SupabaseConfig())
-
-                row = (
-                    store._client
-                    .table(store._table)
-                    .select("storage_path, filename, content_type")
-                    .eq("id", document_id)
-                    .single()
-                    .execute()
-                )
-                if not row.data:
+                store = DocumentStore()
+                doc = store.get(document_id, chat_id)
+                if not doc:
                     await ws.send_json({"type": "error", "message": f"Document '{document_id}' not found."})
                     await ws.close()
                     return
 
-                storage_path = row.data["storage_path"]
-                content_type = row.data.get("content_type", "")
+                content_type = doc.get("content_type", "")
                 if not doc_title:
-                    doc_title = row.data.get("filename", "untitled")
+                    doc_title = doc.get("name", "untitled")
 
-                file_bytes = store.download_document(storage_path)
+                file_bytes = store.read_bytes(doc["path"])
 
                 if "pdf" in content_type:
                     try:
@@ -90,7 +78,7 @@ async def run_pipeline(ws: WebSocket):
                     document_text = file_bytes.decode("utf-8", errors="replace")
 
             except Exception as fetch_err:
-                logger.error("Failed to fetch document from Supabase: %s", fetch_err)
+                logger.error("Failed to fetch document: %s", fetch_err)
                 await ws.send_json({"type": "error", "message": f"Failed to fetch document: {fetch_err}"})
                 await ws.close()
                 return
@@ -103,7 +91,7 @@ async def run_pipeline(ws: WebSocket):
         config_overrides = payload.get("config", {})
         config = PipelineConfig(**config_overrides)
 
-        pipeline = GraphRAGPipeline(config, user_id=user_id, document_id=document_id)
+        pipeline = GraphRAGPipeline(config, chat_id=chat_id, document_id=document_id)
 
         try:
             async for status_msg in pipeline.run(
