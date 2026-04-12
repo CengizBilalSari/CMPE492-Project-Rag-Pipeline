@@ -1186,3 +1186,55 @@ tbody tr:last-child td {
   text-align: center;
   line-height: 1.6;
 }
+
+/* ── Chat list (chat-selection step) ───────────────── */
+.chat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.chat-list-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--anim);
+  text-align: left;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.chat-list-item:hover {
+  border-color: var(--accent);
+  background: rgba(139, 92, 246, 0.08);
+  box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.2);
+  transform: translateX(2px);
+}
+
+.chat-list-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.chat-list-name {
+  flex: 1;
+}
+
+.chat-list-arrow {
+  color: var(--text-dim);
+  transition: transform var(--anim);
+}
+
+.chat-list-item:hover .chat-list-arrow {
+  transform: translateX(4px);
+  color: var(--accent);
+}

@@ -6,14 +6,15 @@
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- ── Chats (one row per username / workspace) ────────────────
+-- ── Chats (local workspaces) ──────────────────────────────────
+-- A single local user can create many named chat bases.
 CREATE TABLE IF NOT EXISTS chats (
   chat_id    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  username   TEXT NOT NULL UNIQUE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  name       TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (name)
 );
 
-CREATE INDEX IF NOT EXISTS idx_chats_username ON chats(username);
 
 -- ── Documents (metadata; actual bytes live on the local FS) ─
 CREATE TABLE IF NOT EXISTS documents (

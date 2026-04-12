@@ -149,7 +149,7 @@ export default function Pipeline() {
   return (
     <>
       <div className="page-header">
-        <h2>Pipeline</h2>
+        <h2>Graph Generation</h2>
         <p>Configure and run the GraphRAG knowledge graph construction pipeline.</p>
       </div>
 
@@ -267,7 +267,7 @@ export default function Pipeline() {
                 Running…
               </>
             ) : (
-              <> ▶ Run Pipeline</>
+              <> ▶ Run Graph Generation</>
             )}
           </button>
 
@@ -279,7 +279,7 @@ export default function Pipeline() {
 
           {done && !running && (
             <span style={{ color: "var(--green)", fontSize: 13, fontWeight: 600, alignSelf: "center" }}>
-              ✔ Pipeline completed successfully
+              ✔ Graph Generation completed successfully
             </span>
           )}
         </div>
@@ -291,7 +291,7 @@ export default function Pipeline() {
           <div className="card-header" style={{ marginBottom: 12 }}>
             <div className="card-icon">📋</div>
             <div>
-              <h3>Pipeline Progress</h3>
+              <h3>Graph Generation Progress</h3>
               <div className="card-subtitle">
                 {done
                   ? "All steps completed"

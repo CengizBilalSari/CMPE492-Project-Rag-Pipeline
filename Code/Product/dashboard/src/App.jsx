@@ -6,23 +6,31 @@ import Pipeline from "./pages/Pipeline";
 import Evaluation from "./pages/Evaluation";
 import History from "./pages/History";
 import Login from "./pages/Login";
-import { getChatId, logout } from "./api";
+import { getChatId, clearChat } from "./api";
 
 export default function App() {
   const [chatId, setChatId] = useState(getChatId());
 
+  // Neither step done → show login (chat base selection)
   if (!chatId) {
-    return <Login onLogin={() => setChatId(getChatId())} />;
+    return (
+      <Login
+        onLogin={() => {
+          setChatId(getChatId());
+        }}
+      />
+    );
   }
 
-  function handleLogout() {
-    logout();
+  /** Go back to chat-selection. */
+  function handleSwitchChat() {
+    clearChat();
     setChatId(null);
   }
 
   return (
     <div className="layout">
-      <Sidebar onLogout={handleLogout} />
+      <Sidebar onSwitchChat={handleSwitchChat} />
       <main className="main">
         <Routes>
           <Route path="/" element={<Documents />} />
