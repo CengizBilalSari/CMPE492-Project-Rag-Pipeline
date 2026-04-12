@@ -1,67 +1,107 @@
 from __future__ import annotations
 
-import os
 from fastapi import APIRouter, Header, HTTPException
-from supabase import create_client
+
+from core.db import connection
 
 router = APIRouter(prefix="/api/history", tags=["history"])
 
 
-def _get_supabase():
-    url = os.getenv("SUPABASE_URL", "")
-    key = os.getenv("SUPABASE_KEY", "")
-    if not url or not key:
-        raise HTTPException(status_code=500, detail="Supabase not configured.")
-    return create_client(url, key)
+def _rows(cur) -> list[dict]:
+    return [dict(r) for r in cur.fetchall()]
 
 
 @router.get("/documents")
-async def list_documents(x_user_id: str = Header(..., alias="X-User-Id")):
-    db = _get_supabase()
-    resp = db.table("documents").select("*").eq("user_id", x_user_id).order("created_at", desc=True).execute()
-    return resp.data or []
+async def list_documents(x_chat_id: str = Header(..., alias="X-Chat-Id")):
+    with connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, chat_id, name, path, content_type, created_at
+                FROM documents
+                WHERE chat_id = %s
+                ORDER BY created_at DESC
+                """,
+                (x_chat_id,),
+            )
+            return _rows(cur)
 
 
 @router.get("/pipeline-runs")
-async def list_pipeline_runs(x_user_id: str = Header(..., alias="X-User-Id")):
-    db = _get_supabase()
-    resp = (
-        db.table("pipeline_runs")
-        .select("*, documents(filename)")
-        .eq("user_id", x_user_id)
-        .order("started_at", desc=True)
-        .execute()
-    )
-    return resp.data or []
+async def list_pipeline_runs(x_chat_id: str = Header(..., alias="X-Chat-Id")):
+    with connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT pr.*, d.name AS document_name
+                FROM pipeline_runs pr
+                LEFT JOIN documents d ON d.id = pr.document_id
+                WHERE pr.chat_id = %s
+                ORDER BY pr.started_at DESC
+                """,
+                (x_chat_id,),
+            )
+            return _rows(cur)
 
 
 @router.get("/evaluation-jobs")
-async def list_evaluation_jobs(x_user_id: str = Header(..., alias="X-User-Id")):
-    db = _get_supabase()
-    resp = (
-        db.table("evaluation_jobs")
-        .select("*")
-        .eq("user_id", x_user_id)
-        .order("created_at", desc=True)
-        .execute()
-    )
-    return resp.data or []
+async def list_evaluation_jobs(x_chat_id: str = Header(..., alias="X-Chat-Id")):
+    with connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT *
+                FROM evaluation_jobs
+                WHERE chat_id = %s
+                ORDER BY created_at DESC
+                """,
+                (x_chat_id,),
+            )
+            return _rows(cur)
 
 
 @router.get("/evaluation-jobs/{job_id}/details")
-async def get_evaluation_job_details(job_id: str, x_user_id: str = Header(..., alias="X-User-Id")):
-    db = _get_supabase()
-    # verify ownership
-    job_resp = db.table("evaluation_jobs").select("*").eq("id", job_id).eq("user_id", x_user_id).execute()
-    if not job_resp.data:
-        raise HTTPException(status_code=404, detail="Job not found")
-        
-    results_resp = db.table("evaluation_results").select("*").eq("job_id", job_id).execute()
-    # fetch qa pairs joined with their evaluations
-    qa_pairs_resp = db.table("qa_pairs").select("*, qa_evaluations(*)").eq("job_id", job_id).execute()
-    
+async def get_evaluation_job_details(
+    job_id: str,
+    x_chat_id: str = Header(..., alias="X-Chat-Id"),
+):
+    with connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT * FROM evaluation_jobs WHERE id = %s AND chat_id = %s",
+                (job_id, x_chat_id),
+            )
+            job = cur.fetchone()
+            if not job:
+                raise HTTPException(status_code=404, detail="Job not found")
+
+            cur.execute(
+                "SELECT * FROM evaluation_results WHERE job_id = %s",
+                (job_id,),
+            )
+            results = _rows(cur)
+
+            cur.execute(
+                "SELECT * FROM qa_pairs WHERE job_id = %s ORDER BY id",
+                (job_id,),
+            )
+            qa_pairs = _rows(cur)
+
+            if qa_pairs:
+                pair_ids = [p["id"] for p in qa_pairs]
+                cur.execute(
+                    "SELECT * FROM qa_evaluations WHERE qa_pair_id = ANY(%s)",
+                    (pair_ids,),
+                )
+                evaluations = _rows(cur)
+                by_pair: dict = {}
+                for e in evaluations:
+                    by_pair.setdefault(e["qa_pair_id"], []).append(e)
+                for p in qa_pairs:
+                    p["qa_evaluations"] = by_pair.get(p["id"], [])
+
     return {
-        "job": job_resp.data[0],
-        "results": results_resp.data,
-        "qa_pairs": qa_pairs_resp.data
+        "job": dict(job),
+        "results": results,
+        "qa_pairs": qa_pairs,
     }

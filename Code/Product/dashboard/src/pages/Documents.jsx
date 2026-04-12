@@ -119,7 +119,7 @@ export default function Documents() {
                   <tr key={d.id}>
                     <td style={{ fontWeight: 500 }}>
                       {d.content_type?.includes("pdf") ? "📄 " : "📝 "}
-                      {d.filename}
+                      {d.name}
                     </td>
                     <td>
                       <span className="badge badge-created">{fmtType(d.content_type)}</span>

@@ -1,26 +1,66 @@
 const PIPELINER_BASE = "";
 const EVALUATOR_BASE = "/eval";
 
-function getUserId() {
-  let uid = localStorage.getItem("graphrag_user_id");
-  if (!uid) {
-    if (typeof crypto !== "undefined" && crypto.randomUUID) {
-      uid = crypto.randomUUID();
-    } else {
-      // Fallback for insecure contexts (non-HTTPS IP addresses)
-      uid = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
-        var r = (Math.random() * 16) | 0,
-          v = c === "x" ? r : (r & 0x3) | 0x8;
-        return v.toString(16);
-      });
-    }
-    localStorage.setItem("graphrag_user_id", uid);
+const CHAT_ID_KEY   = "graphrag_chat_id";
+const CHAT_NAME_KEY = "graphrag_chat_name";
+const USERNAME_KEY  = "graphrag_username";
+
+
+// ── Auth ─────────────────────────────────────────────────────
+
+/** Step 2a: list all chat bases. */
+export async function listChats() {
+  const res = await fetch(`${PIPELINER_BASE}/api/auth/chats`);
+  if (!res.ok) {
+    let detail = res.statusText;
+    try { detail = (await res.json()).detail || detail; } catch {}
+    throw new Error(detail);
   }
-  return uid;
+  return await res.json();
+}
+
+/** Step 2b: create a new chat base. */
+export async function createChat(name) {
+  const res = await fetch(`${PIPELINER_BASE}/api/auth/chats`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) {
+    let detail = res.statusText;
+    try { detail = (await res.json()).detail || detail; } catch {}
+    throw new Error(detail);
+  }
+  const data = await res.json();
+  selectChat(data);
+  return data;
+}
+
+/** Select a chat, save to local storage. */
+export function selectChat(chat) {
+  localStorage.setItem(CHAT_ID_KEY, chat.chat_id);
+  localStorage.setItem(CHAT_NAME_KEY, chat.name);
+}
+
+/** Get the active chat. */
+export function getChatId() {
+  return localStorage.getItem(CHAT_ID_KEY);
+}
+
+export function getChatName() {
+  return localStorage.getItem(CHAT_NAME_KEY);
+}
+
+/** Clear active chat. */
+export function clearChat() {
+  localStorage.removeItem(CHAT_ID_KEY);
+  localStorage.removeItem(CHAT_NAME_KEY);
 }
 
 function headers(extra = {}) {
-  return { "X-User-Id": getUserId(), ...extra };
+  const chatId = getChatId();
+  if (!chatId) throw new Error("Not logged in.");
+  return { "X-Chat-Id": chatId, ...extra };
 }
 
 // ── Documents ───────────────────────────────────────
@@ -46,7 +86,7 @@ export function connectPipeline(payload, onMessage, onClose) {
   ws.onopen = () => {
     ws.send(
       JSON.stringify({
-        user_id: getUserId(),
+        chat_id: getChatId(),
         ...payload,
       })
     );
@@ -99,8 +139,7 @@ export async function getEvalResults(jobId) {
   return res.json();
 }
 
-// ── History (direct Supabase reads via backend proxy would be ideal,
-//    but for now we expose simple GET endpoints) ─────
+// ── History ─────────────────────────────────────────
 
 export async function getDocuments() {
   const res = await fetch(`${PIPELINER_BASE}/api/history/documents`, {
@@ -133,5 +172,3 @@ export async function getEvaluationJobDetails(jobId) {
   if (!res.ok) return null;
   return res.json();
 }
-
-export { getUserId };

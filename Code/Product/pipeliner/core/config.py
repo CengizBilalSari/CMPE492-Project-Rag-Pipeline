@@ -86,11 +86,17 @@ class CommunityDetectionConfig(BaseModel):
     level: int = -1
 
 
-class SupabaseConfig(BaseModel):
-    url: str = Field(default_factory=lambda: os.getenv("SUPABASE_URL", ""))
-    key: str = Field(default_factory=lambda: os.getenv("SUPABASE_KEY", ""))
-    bucket: str = "documents"
-    table: str = "documents"
+class PostgresConfig(BaseModel):
+    dsn: str = Field(
+        default_factory=lambda: os.getenv(
+            "DATABASE_URL",
+            "postgresql://graphrag:graphrag@postgres:5432/graphrag",
+        )
+    )
+
+
+class StorageConfig(BaseModel):
+    base_path: str = Field(default_factory=lambda: os.getenv("STORAGE_BASE", "/docs"))
 
 
 class PipelineConfig(BaseModel):
@@ -101,4 +107,5 @@ class PipelineConfig(BaseModel):
     extraction: ExtractionConfig = ExtractionConfig()
     entity_resolution: EntityResolutionConfig = EntityResolutionConfig()
     community_detection: CommunityDetectionConfig = CommunityDetectionConfig()
-    supabase: SupabaseConfig = SupabaseConfig()
+    postgres: PostgresConfig = PostgresConfig()
+    storage: StorageConfig = StorageConfig()

@@ -1,15 +1,16 @@
 import { NavLink } from "react-router-dom";
-import { getUserId } from "../api";
+import { getChatName } from "../api";
 
 const NAV = [
-  { to: "/",           label: "Documents",  icon: "📄", end: true },
-  { to: "/pipeline",   label: "Pipeline",   icon: "⚡" },
+  { to: "/", label: "Documents", icon: "📄", end: true },
+  { to: "/pipeline", label: "Graph Generation", icon: "⚡" },
   { to: "/evaluation", label: "Evaluation", icon: "📊" },
-  { to: "/history",    label: "History",    icon: "🕑" },
+  { to: "/history", label: "History", icon: "🕑" },
 ];
 
-export default function Sidebar() {
-  const uid = getUserId();
+export default function Sidebar({ onSwitchChat }) {
+  const chatName = getChatName() || "";
+
   return (
     <nav className="sidebar">
       <div className="sidebar-logo">
@@ -33,9 +34,23 @@ export default function Sidebar() {
 
       <div className="sidebar-footer">
         <div className="user-id">
-          <strong>Session ID</strong>
-          {uid.slice(0, 8)}…{uid.slice(-4)}
+          {chatName ? (
+            <strong style={{ display: "block", fontSize: 13, marginBottom: 4 }}>
+              💬 {chatName}
+            </strong>
+          ) : (
+            <strong style={{ display: "block", fontSize: 13, marginBottom: 4 }}>
+              No chat selected
+            </strong>
+          )}
         </div>
+        <button
+          className="btn btn-outline"
+          onClick={onSwitchChat}
+          style={{ marginTop: 8, width: "100%" }}
+        >
+          Switch Chat
+        </button>
       </div>
     </nav>
   );

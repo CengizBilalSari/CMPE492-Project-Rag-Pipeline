@@ -7,8 +7,8 @@ from typing import Any, AsyncGenerator
 
 import neo4j
 
-from core.config import PipelineConfig, SupabaseConfig
-from core.supabase_client import SupabasePipelineHistory
+from core.config import PipelineConfig
+from core.pipeline_history import PipelineHistory
 from services.llm_service import get_llm, LLMInterface
 from services.chunking_service import get_chunker
 from services.extraction_service import EntityRelationshipExtractor
@@ -21,16 +21,15 @@ logger = logging.getLogger(__name__)
 
 
 class GraphRAGPipeline:
-    def __init__(self, config: PipelineConfig, user_id: str = "", document_id: str = "") -> None:
-        self.user_id = user_id
+    def __init__(self, config: PipelineConfig, chat_id: str = "", document_id: str = "") -> None:
+        self.chat_id = chat_id
         self.document_id = document_id
         self._run_id: str | None = None
 
-        # Initialize Supabase history (optional — won't fail if creds missing)
         try:
-            self._history = SupabasePipelineHistory(config.supabase)
-        except (ValueError, Exception) as e:
-            logger.warning("Supabase history disabled: %s", e)
+            self._history = PipelineHistory()
+        except Exception as e:
+            logger.warning("Pipeline history disabled: %s", e)
             self._history = None
         self.config = config
         self.llm: LLMInterface = get_llm(
@@ -66,15 +65,22 @@ class GraphRAGPipeline:
         yield "Initializing pipeline..."
         self.writer.create_indexes()
 
-        doc_id = hashlib.md5(doc_title.encode()).hexdigest()
-        doc_id = self.writer.write_document(doc_id=doc_id, title=doc_title, source=doc_source)
+        if self.chat_id:
+            self.writer.write_chat(self.chat_id)
+
+        doc_id = hashlib.md5(f"{self.chat_id}:{doc_title}".encode()).hexdigest()
+        doc_id = self.writer.write_document(
+            doc_id=doc_id,
+            chat_id=self.chat_id,
+            title=doc_title,
+            source=doc_source,
+        )
         yield f"Document registered: {doc_id}"
 
-        # Create a pipeline_run record in Supabase
-        if self._history and self.user_id and self.document_id:
+        if self._history and self.chat_id and self.document_id:
             try:
                 self._run_id = self._history.create_run(
-                    user_id=self.user_id,
+                    chat_id=self.chat_id,
                     document_id=self.document_id,
                     config_snapshot=self.config.model_dump(mode="json"),
                 )
@@ -117,7 +123,6 @@ class GraphRAGPipeline:
             summary = self._build_summary(total_time)
             yield summary
 
-            # Persist final stats to Supabase
             self._complete_run()
 
             yield "Pipeline completed."

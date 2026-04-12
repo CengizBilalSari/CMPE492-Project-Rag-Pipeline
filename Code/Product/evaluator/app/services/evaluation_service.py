@@ -9,64 +9,93 @@ import uuid
 from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
-from supabase import create_client, Client
 
 from app.evaluation.evaluator import RAGEvaluator, EvalRow
 from app.evaluation.pipeline import QuestionGenerator
 from app.evaluation.rag import GraphRAGSearchClient
 from app.models.evaluation import EvaluationResultMetrics
+from app.services.db import connection
 
 load_dotenv()
 logger = logging.getLogger(__name__)
 
 
-def _get_supabase() -> Client:
-    url = os.getenv("SUPABASE_URL", "")
-    key = os.getenv("SUPABASE_KEY", "")
-    if not url or not key:
-        raise ValueError("SUPABASE_URL and SUPABASE_KEY must be set.")
-    return create_client(url, key)
-
-
 # ── Job lifecycle ────────────────────────────────────────
 
 
-def create_job(user_id: str, search_types: List[str], question_source: str, document_id: Optional[str] = None) -> str:
+def create_job(
+    chat_id: str,
+    search_types: List[str],
+    question_source: str,
+    document_id: Optional[str] = None,
+) -> str:
     """Insert a new evaluation_jobs row and return its id."""
     job_id = str(uuid.uuid4())
-    db = _get_supabase()
-    payload = {
-        "id": job_id,
-        "user_id": user_id,
-        "search_types": search_types,
-        "question_source": question_source,
-        "status": "pending",
-    }
-    if document_id:
-        payload["document_id"] = document_id
-
-    db.table("evaluation_jobs").insert(payload).execute()
+    with connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO evaluation_jobs (id, chat_id, search_types, question_source, document_id, status)
+                VALUES (%s, %s, %s, %s, %s, 'pending')
+                """,
+                (job_id, chat_id, search_types, question_source, document_id),
+            )
+        conn.commit()
     return job_id
 
 
 def get_job(job_id: str) -> Optional[Dict[str, Any]]:
-    """Read job status from Supabase."""
-    db = _get_supabase()
-    resp = db.table("evaluation_jobs").select("*").eq("id", job_id).execute()
-    rows = resp.data or []
-    return rows[0] if rows else None
+    with connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM evaluation_jobs WHERE id = %s", (job_id,))
+            row = cur.fetchone()
+    return dict(row) if row else None
 
 
 def get_results(job_id: str) -> List[Dict[str, Any]]:
-    """Read aggregated evaluation_results for a job."""
-    db = _get_supabase()
-    resp = db.table("evaluation_results").select("*").eq("job_id", job_id).execute()
-    return resp.data or []
+    with connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM evaluation_results WHERE job_id = %s", (job_id,))
+            return [dict(r) for r in cur.fetchall()]
 
 
 def _update_job(job_id: str, **fields) -> None:
-    db = _get_supabase()
-    db.table("evaluation_jobs").update(fields).eq("id", job_id).execute()
+    if not fields:
+        return
+    sets = ", ".join(f"{k} = %s" for k in fields)
+    values = list(fields.values()) + [job_id]
+    with connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(f"UPDATE evaluation_jobs SET {sets} WHERE id = %s", values)
+        conn.commit()
+
+
+def _mark_completed(job_id: str, progress: str = "Done.") -> None:
+    with connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE evaluation_jobs
+                SET status = 'completed', progress = %s, completed_at = now()
+                WHERE id = %s
+                """,
+                (progress, job_id),
+            )
+        conn.commit()
+
+
+def _mark_failed(job_id: str, error: str) -> None:
+    with connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE evaluation_jobs
+                SET status = 'failed', error = %s, completed_at = now()
+                WHERE id = %s
+                """,
+                (error, job_id),
+            )
+        conn.commit()
 
 
 # ── Background task ──────────────────────────────────────
@@ -82,10 +111,7 @@ def start_evaluation_job(
     llm_model: str = "gpt-4o",
 ) -> None:
     """Run the full evaluation lifecycle. Called from a BackgroundTask."""
-    db = _get_supabase()
-
     try:
-        # ── Step 1: Prepare QA pairs ──────────────────────
         qa_rows: List[Dict[str, str]] = []
 
         if question_source == "custom" and uploaded_csv_bytes:
@@ -111,18 +137,21 @@ def start_evaluation_job(
         else:
             raise ValueError(f"Invalid question_source: {question_source}")
 
-        # Persist QA pairs to qa_pairs table
+        # Persist QA pairs
         qa_pair_ids: List[str] = []
-        for row in qa_rows:
-            pair_id = str(uuid.uuid4())
-            qa_pair_ids.append(pair_id)
-            db.table("qa_pairs").insert({
-                "id": pair_id,
-                "job_id": job_id,
-                "question": row["question"],
-                "ground_truth_answer": row["ground_truth_answer"],
-                "source": question_source,
-            }).execute()
+        with connection() as conn:
+            with conn.cursor() as cur:
+                for row in qa_rows:
+                    pair_id = str(uuid.uuid4())
+                    qa_pair_ids.append(pair_id)
+                    cur.execute(
+                        """
+                        INSERT INTO qa_pairs (id, job_id, question, ground_truth_answer, source)
+                        VALUES (%s, %s, %s, %s, %s)
+                        """,
+                        (pair_id, job_id, row["question"], row["ground_truth_answer"], question_source),
+                    )
+            conn.commit()
 
         logger.info("Persisted %d QA pairs for job %s.", len(qa_rows), job_id)
 
@@ -137,9 +166,9 @@ def start_evaluation_job(
             llm_model=llm_model,
         )
         evaluator = RAGEvaluator(
-            search_client=search_client, 
-            judge_provider=llm_provider, 
-            judge_model=llm_model
+            search_client=search_client,
+            judge_provider=llm_provider,
+            judge_model=llm_model,
         )
 
         for st in search_types:
@@ -149,41 +178,59 @@ def start_evaluation_job(
             eval_rows = evaluator.run(qa_rows, search_type=st)
             metrics = RAGEvaluator.aggregate(eval_rows)
 
-            # Persist aggregated result
-            db.table("evaluation_results").insert({
-                "job_id": job_id,
-                "search_type": st,
-                "token_cost": metrics["total_tokens"],
-                "time_per_request": metrics["avg_latency_ms"],
-                "answer_accuracy": metrics["avg_answer_correctness"],
-                "context_relevance": metrics["avg_context_relevance"],
-            }).execute()
+            with connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        INSERT INTO evaluation_results
+                            (job_id, search_type, token_cost, time_per_request, answer_accuracy, context_relevance)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                        """,
+                        (
+                            job_id,
+                            st,
+                            metrics["total_tokens"],
+                            metrics["avg_latency_ms"],
+                            metrics["avg_answer_correctness"],
+                            metrics["avg_context_relevance"],
+                        ),
+                    )
 
-            # Persist per-question evaluations
-            for er, pair_id in zip(eval_rows, qa_pair_ids):
-                db.table("qa_evaluations").insert({
-                    "job_id": job_id,
-                    "qa_pair_id": pair_id,
-                    "search_type": st,
-                    "rag_answer": er.rag_answer,
-                    "retrieved_contexts": json.dumps(er.retrieved_contexts or []),
-                    "answer_correctness_score": er.answer_correctness_score,
-                    "answer_correctness_reason": er.answer_correctness_reason,
-                    "context_relevance_score": er.context_relevance_score,
-                    "context_relevance_reason": er.context_relevance_reason,
-                    "latency_ms": er.latency_ms,
-                    "prompt_tokens": er.prompt_tokens,
-                    "completion_tokens": er.completion_tokens,
-                    "total_tokens": er.total_tokens,
-                }).execute()
+                    for er, pair_id in zip(eval_rows, qa_pair_ids):
+                        cur.execute(
+                            """
+                            INSERT INTO qa_evaluations (
+                                job_id, qa_pair_id, search_type, rag_answer, retrieved_contexts,
+                                answer_correctness_score, answer_correctness_reason,
+                                context_relevance_score, context_relevance_reason,
+                                latency_ms, prompt_tokens, completion_tokens, total_tokens
+                            )
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            """,
+                            (
+                                job_id,
+                                pair_id,
+                                st,
+                                er.rag_answer,
+                                json.dumps(er.retrieved_contexts or []),
+                                er.answer_correctness_score,
+                                er.answer_correctness_reason,
+                                er.context_relevance_score,
+                                er.context_relevance_reason,
+                                er.latency_ms,
+                                er.prompt_tokens,
+                                er.completion_tokens,
+                                er.total_tokens,
+                            ),
+                        )
+                conn.commit()
 
-        # ── Step 3: Mark completed ────────────────────────
-        _update_job(job_id, status="completed", progress="Done.", completed_at="now()")
+        _mark_completed(job_id)
         logger.info("Evaluation job %s completed.", job_id)
 
     except Exception as e:
         logger.error("Evaluation job %s failed: %s", job_id, e, exc_info=True)
-        _update_job(job_id, status="failed", error=str(e), completed_at="now()")
+        _mark_failed(job_id, str(e))
 
 
 def _parse_csv(csv_bytes: bytes) -> List[Dict[str, str]]:

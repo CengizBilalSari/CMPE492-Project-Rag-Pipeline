@@ -1,11 +1,10 @@
 from __future__ import annotations
 
+import io
 import logging
-import os
 from typing import List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, File, Form, Header, HTTPException, UploadFile
-from supabase import create_client
 
 from app.models.evaluation import (
     EvaluationJobStatus,
@@ -13,10 +12,22 @@ from app.models.evaluation import (
     EvaluationResultsResponse,
 )
 from app.services import evaluation_service
+from app.services.db import connection, read_document_bytes
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/evaluate", tags=["evaluation"])
+
+
+def _extract_text(file_bytes: bytes, content_type: str) -> str:
+    if "pdf" in (content_type or ""):
+        try:
+            import pypdf
+            reader = pypdf.PdfReader(io.BytesIO(file_bytes))
+            return "\n".join(page.extract_text() or "" for page in reader.pages)
+        except ImportError:
+            raise HTTPException(status_code=500, detail="pypdf not installed.")
+    return file_bytes.decode("utf-8", errors="replace")
 
 
 @router.post("/start")
@@ -27,14 +38,14 @@ async def start_evaluation(
     llm_provider: str = Form("lmstudio"),
     llm_model: str = Form("gpt-4o"),
     doc_id: Optional[str] = Form(None),
-    x_user_id: str = Header(..., alias="X-User-Id"),
+    x_chat_id: str = Header(..., alias="X-Chat-Id"),
     file: Optional[UploadFile] = File(None),
 ):
     """Start an evaluation job.
 
     - search_types: comma-separated list, e.g. "global,local,lazy,ppr,rag,no-retriever"
-    - question_source: "custom" (upload CSV) or "auto" (generate from Supabase docs)
-    - X-User-Id header: user id from localStorage
+    - question_source: "custom" (upload CSV) or "auto" (generate from documents)
+    - X-Chat-Id header: chat id from login
     - file: CSV with 'question' and 'ground_truth_answer' columns (required when question_source="custom")
     """
     types_list: List[str] = [s.strip() for s in search_types.split(",") if s.strip()]
@@ -61,38 +72,38 @@ async def start_evaluation(
         uploaded_csv_bytes = await file.read()
 
     elif question_source == "auto":
-        supabase_url = os.getenv("SUPABASE_URL", "")
-        supabase_key = os.getenv("SUPABASE_KEY", "")
-        if not supabase_url or not supabase_key:
-            raise HTTPException(status_code=500, detail="SUPABASE_URL and SUPABASE_KEY must be set for auto mode.")
+        with connection() as conn:
+            with conn.cursor() as cur:
+                if doc_id:
+                    cur.execute(
+                        "SELECT path, content_type FROM documents WHERE id = %s AND chat_id = %s",
+                        (doc_id, x_chat_id),
+                    )
+                else:
+                    cur.execute(
+                        "SELECT path, content_type FROM documents WHERE chat_id = %s",
+                        (x_chat_id,),
+                    )
+                docs = [dict(r) for r in cur.fetchall()]
 
-        client = create_client(supabase_url, supabase_key)
-        # Fetch only this user's documents
-        query = client.table("documents").select("storage_path").eq("user_id", x_user_id)
-        if doc_id:
-            query = query.eq("id", doc_id)
-        
-        docs_resp = query.execute()
-        docs = docs_resp.data or []
         if not docs:
-            raise HTTPException(status_code=400, detail="No documents found for this user.")
+            raise HTTPException(status_code=400, detail="No documents found for this chat.")
 
         document_texts = []
         for doc in docs:
-            path = doc["storage_path"]
             try:
-                file_bytes = client.storage.from_("documents").download(path)
-                text = file_bytes.decode("utf-8", errors="replace")
+                file_bytes = read_document_bytes(doc["path"])
+                text = _extract_text(file_bytes, doc.get("content_type", ""))
                 if text.strip():
                     document_texts.append(text)
             except Exception as e:
-                logger.warning("Failed to download %s: %s", path, e)
+                logger.warning("Failed to read %s: %s", doc["path"], e)
 
         if not document_texts:
             raise HTTPException(status_code=400, detail="Could not extract text from any documents.")
 
     job_id = evaluation_service.create_job(
-        user_id=x_user_id,
+        chat_id=x_chat_id,
         search_types=types_list,
         question_source=question_source,
         document_id=doc_id,

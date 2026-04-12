@@ -4,8 +4,8 @@ uvicorn==0.30.0
 python-multipart==0.0.9
 websockets==13.0
 
-# Supabase
-supabase==2.9.1
+# PostgreSQL
+psycopg[binary,pool]==3.2.3
 
 # Graph database
 neo4j==5.27.0

@@ -17,6 +17,7 @@ class GraphRAGNeo4jWriter:
 
     def create_indexes(self) -> None:
         queries = [
+            "CREATE CONSTRAINT IF NOT EXISTS FOR (c:Chat) REQUIRE c.chat_id IS UNIQUE",
             "CREATE CONSTRAINT IF NOT EXISTS FOR (d:Document) REQUIRE d.id IS UNIQUE",
             "CREATE CONSTRAINT IF NOT EXISTS FOR (c:Chunk) REQUIRE c.id IS UNIQUE",
             "CREATE CONSTRAINT IF NOT EXISTS FOR (e:Entity) REQUIRE e.name IS UNIQUE",
@@ -32,18 +33,44 @@ class GraphRAGNeo4jWriter:
                     logger.warning("Index/constraint creation skipped: %s", exc)
         logger.info("Neo4j indexes and constraints created.")
 
-    def write_document(self, doc_id: Optional[str] = None, title: str = "", source: str = "") -> str:
-        doc_id = doc_id or str(uuid.uuid4())
+    def write_chat(self, chat_id: str) -> None:
         with self.driver.session(database=self.database) as session:
             session.run(
-                """
-                MERGE (d:Document {id: $id})
-                SET d.title = $title, d.source = $source
-                SET d.status = CASE WHEN d.status IS NULL THEN 'CREATED' ELSE d.status END
-                """,
-                id=doc_id, title=title, source=source,
+                "MERGE (c:Chat {chat_id: $id})",
+                id=chat_id,
             )
-        logger.info("Document written: %s", doc_id)
+        logger.info("Chat node ensured: %s", chat_id)
+
+    def write_document(
+        self,
+        doc_id: Optional[str] = None,
+        chat_id: str = "",
+        title: str = "",
+        source: str = "",
+    ) -> str:
+        doc_id = doc_id or str(uuid.uuid4())
+        with self.driver.session(database=self.database) as session:
+            if chat_id:
+                session.run(
+                    """
+                    MERGE (chat:Chat {chat_id: $chat_id})
+                    MERGE (d:Document {id: $id})
+                    SET d.title = $title, d.source = $source, d.chat_id = $chat_id
+                    SET d.status = CASE WHEN d.status IS NULL THEN 'CREATED' ELSE d.status END
+                    MERGE (chat)-[:OWNS]->(d)
+                    """,
+                    id=doc_id, title=title, source=source, chat_id=chat_id,
+                )
+            else:
+                session.run(
+                    """
+                    MERGE (d:Document {id: $id})
+                    SET d.title = $title, d.source = $source
+                    SET d.status = CASE WHEN d.status IS NULL THEN 'CREATED' ELSE d.status END
+                    """,
+                    id=doc_id, title=title, source=source,
+                )
+        logger.info("Document written: %s (chat=%s)", doc_id, chat_id or "-")
         return doc_id
 
     def write_chunks(self, doc_id: str, chunks: list[str]) -> list[str]:

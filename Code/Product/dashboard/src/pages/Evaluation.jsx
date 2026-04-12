@@ -330,7 +330,7 @@ export default function Evaluation() {
               <label>Target Document</label>
               <select value={docId} onChange={e => setDocId(e.target.value)}>
                 {docs.length === 0 ? <option value="">No documents found</option> : null}
-                {docs.map(d => <option key={d.id} value={d.id}>{d.filename}</option>)}
+                {docs.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
             </div>
           </div>
