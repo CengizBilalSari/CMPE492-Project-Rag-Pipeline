@@ -158,12 +158,19 @@ class GraphRAGNeo4jWriter:
 
 
     def write_communities(self, communities: dict[int, list[str]]) -> None:
+        import hashlib
         with self.driver.session(database=self.database) as session:
+            session.run("MATCH (c:Community) DETACH DELETE c")
+            
             for comm_id, entity_names in communities.items():
+                sorted_names = sorted(entity_names)
+                entity_hash = hashlib.md5("".join(sorted_names).encode()).hexdigest()
+                
                 session.run(
-                    "MERGE (com:Community {id: $id}) SET com.size = $size",
+                    "MERGE (com:Community {id: $id}) SET com.size = $size, com.entity_hash = $hash",
                     id=str(comm_id),
                     size=len(entity_names),
+                    hash=entity_hash
                 )
                 for name in entity_names:
                     session.run(
@@ -175,7 +182,17 @@ class GraphRAGNeo4jWriter:
                         name=name,
                         comm_id=str(comm_id),
                     )
-        logger.info("Wrote %d communities.", len(communities))
+                
+                session.run(
+                    """
+                    MATCH (com:Community {id: $comm_id})
+                    MATCH (cs:CommunitySummary {entity_hash: $hash})
+                    MERGE (com)-[:HAS_SUMMARY]->(cs)
+                    """,
+                    comm_id=str(comm_id),
+                    hash=entity_hash,
+                )
+        logger.info("Wrote %d communities. Attempted to link unchanged historical summaries.", len(communities))
 
     def write_community_summaries(self, summaries: dict[int, str]) -> None:
         with self.driver.session(database=self.database) as session:
@@ -185,7 +202,7 @@ class GraphRAGNeo4jWriter:
                     """
                     MATCH (com:Community {id: $comm_id})
                     MERGE (cs:CommunitySummary {id: $summary_id})
-                    SET cs.text = $text
+                    SET cs.text = $text, cs.entity_hash = com.entity_hash
                     MERGE (com)-[:HAS_SUMMARY]->(cs)
                     """,
                     comm_id=str(comm_id),
@@ -205,6 +222,21 @@ class GraphRAGNeo4jWriter:
                     emb=emb,
                 )
         logger.info("Wrote text_embedding for %d entities.", len(name_to_embedding))
+
+    def clean_orphaned_summaries(self) -> None:
+        with self.driver.session(database=self.database) as session:
+            result = session.run(
+                """
+                MATCH (cs:CommunitySummary)
+                WHERE NOT ()-[:HAS_SUMMARY]->(cs)
+                WITH cs, cs.id AS id
+                DETACH DELETE cs
+                RETURN count(id) AS deleted_count
+                """
+            ).single()
+            count = result["deleted_count"] if result else 0
+            if count > 0:
+                logger.info("Cleaned up %d orphaned CommunitySummary nodes.", count)
 
     def clear_database(self) -> None:
         with self.driver.session(database=self.database) as session:

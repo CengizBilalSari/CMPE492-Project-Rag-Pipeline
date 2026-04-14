@@ -222,10 +222,13 @@ class GraphRAGPipeline:
         communities_to_summarize = summarizer._get_unsummarized_communities() 
         if not communities_to_summarize:
              logger.info("  → All communities already summarized.")
+             self.writer.clean_orphaned_summaries()
              return
 
         summaries = await summarizer.summarize(communities_to_summarize)
         self.writer.write_community_summaries(summaries)
+        self.writer.clean_orphaned_summaries()
+        
         self.step_times["6. Summarize Communities"] = time.time() - t0
         self.writer.update_document_status(doc_id, "COMPLETED")
         

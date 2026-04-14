@@ -22,18 +22,18 @@ __pycache__/
 .env
 
 #plugins
-Code/neo4j/**/plugins/*.jar
-Code/neo4j/*
+Archive/Code/neo4j/**/plugins/*.jar
+Archive/Code/neo4j/*
 
-Code/TutorialsAndExperiments/PrimeKG/HPO_KG/data/*
-Code/TutorialsAndExperiments/PrimeKG/HPO_KG/import/*
-Code/neo4j/MicrosoftGraphRag/graphrag_project/*
+Archive/Code/TutorialsAndExperiments/PrimeKG/HPO_KG/data/*
+Archive/Code/TutorialsAndExperiments/PrimeKG/HPO_KG/import/*
+Archive/Code/neo4j/MicrosoftGraphRag/graphrag_project/*
 
 
-Code/testing_tools/deep_eval/.deep_eval/.*
+Archive/Code/testing_tools/deep_eval/.deep_eval/.*
 launch.json
 
-Code/venv_lightning
+Archive/Code/venv_lightning
 
-Code/Product/dashboard/node_modules/
-Code/Product/dashboard/package-lock.json
+Product/dashboard/node_modules/
+Product/dashboard/package-lock.json
