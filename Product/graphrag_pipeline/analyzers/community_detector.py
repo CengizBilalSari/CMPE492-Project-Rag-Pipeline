@@ -47,9 +47,15 @@ class CommunityDetector:
             self._gds.graph.drop(self._gds.graph.get(graph_name))
             logger.info("Dropped existing GDS projection '%s'.", graph_name)
 
+        logger.info("Seeding communities from previous graph state...")
+        self.driver.execute_query(
+            "MATCH (e:Entity)-[:IN_COMMUNITY]->(com:Community) SET e.seed_community = toInteger(com.id)",
+            database_=self.database,
+        )
+
         G, project_result = self._gds.graph.project(
             graph_name,
-            node_spec="Entity",
+            node_spec={"Entity": {"properties": ["seed_community"]}},
             relationship_spec="RELATED_TO",
         )
         node_count = project_result.get("nodeCount", 0)
@@ -129,13 +135,13 @@ class CommunityDetector:
         if self.algorithm == "leiden":
             logger.info("Running GDS Leiden (resolution=%.2f, all levels)...", self.resolution)
             try:
-                return self._gds.leiden.stream(G, includeIntermediateCommunities=True)
+                return self._gds.leiden.stream(G, includeIntermediateCommunities=True, seedProperty="seed_community")
             except Exception:
                 logger.warning("Leiden does not support includeIntermediateCommunities; falling back to single level.")
-                return self._gds.leiden.stream(G)
+                return self._gds.leiden.stream(G, seedProperty="seed_community")
         else:
             logger.info("Running GDS Louvain (resolution=%.2f, all levels)...", self.resolution)
-            return self._gds.louvain.stream(G, includeIntermediateCommunities=True)
+            return self._gds.louvain.stream(G, includeIntermediateCommunities=True, seedProperty="seed_community")
 
     def _extract_all_levels(self, result_df) -> list[dict[int, int]]:
         levels: list[dict[int, int]] = []
