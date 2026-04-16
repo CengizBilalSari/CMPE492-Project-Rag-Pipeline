@@ -107,6 +107,7 @@ def start_evaluation_job(
     question_source: str,
     uploaded_csv_bytes: Optional[bytes] = None,
     document_texts: Optional[List[str]] = None,
+    provided_qa_pairs: Optional[List[dict]] = None,
     llm_provider: str = "openai",
     llm_model: str = "gpt-4o",
 ) -> None:
@@ -114,7 +115,17 @@ def start_evaluation_job(
     try:
         qa_rows: List[Dict[str, str]] = []
 
-        if question_source == "custom" and uploaded_csv_bytes:
+        if provided_qa_pairs:
+            _update_job(job_id, status="generating_questions", progress="Using manually reviewed questions...")
+            for pair in provided_qa_pairs:
+                q = pair.get("question", "").strip()
+                a = pair.get("ground_truth_answer", "").strip()
+                if q and a:
+                    qa_rows.append({"question": q, "ground_truth_answer": a})
+            if not qa_rows:
+                raise ValueError("Provided QA pairs were empty or invalid.")
+
+        elif question_source == "custom" and uploaded_csv_bytes:
             _update_job(job_id, status="generating_questions", progress="Parsing uploaded CSV...")
             qa_rows = _parse_csv(uploaded_csv_bytes)
             if not qa_rows:
