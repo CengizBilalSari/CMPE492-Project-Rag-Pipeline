@@ -47,7 +47,7 @@ const CHART_BORDERS = [
 function classifyLog(text) {
   const t = (text || "").toLowerCase();
   if (t.includes("error") || t.includes("failed") || t.includes("exception")) return "log-error";
-  if (t.includes("warn"))                  return "log-warn";
+  if (t.includes("warn")) return "log-warn";
   if (t.includes("evaluating") || t.includes("generating") || t.includes("parsing") || t.includes("starting")) return "log-step";
   if (t.includes("complete") || t.includes("done") || t.includes("success") || t.includes("finished")) return "log-ok";
   return "";
@@ -55,9 +55,9 @@ function classifyLog(text) {
 
 function logPrefix(cls) {
   if (cls === "log-error") return "✖";
-  if (cls === "log-warn")  return "⚠";
-  if (cls === "log-step")  return "◆";
-  if (cls === "log-ok")    return "✔";
+  if (cls === "log-warn") return "⚠";
+  if (cls === "log-step") return "◆";
+  if (cls === "log-ok") return "✔";
   return "›";
 }
 
@@ -129,14 +129,14 @@ export default function Evaluation() {
   const [results, setResults] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  
+
   const [numQuestions, setNumQuestions] = useState(10);
   const [chunkStrategy, setChunkStrategy] = useState("recursive");
   const [generatedQaPairs, setGeneratedQaPairs] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [isApproved, setIsApproved] = useState(false);
   const [reviewExpanded, setReviewExpanded] = useState(true);
-  
+
   const [allPastJobs, setAllPastJobs] = useState([]);
   const [pastJobId, setPastJobId] = useState("");
   const [loadingPast, setLoadingPast] = useState(false);
@@ -197,7 +197,7 @@ export default function Evaluation() {
     try {
       const qaPairsToPass = (questionSrc === "auto" || questionSrc === "past") ? generatedQaPairs : null;
       const actualSource = (questionSrc === "auto" || questionSrc === "past") ? "manual" : questionSrc;
-      
+
       const res = await startEvaluation(selected, actualSource, file, provider, model, docId, qaPairsToPass);
       setJobId(res.job_id);
       setStatus("pending");
@@ -257,7 +257,7 @@ export default function Evaluation() {
         const s = await getEvalStatus(id);
         setStatus(s.status);
         setProgressMsg(s.progress || "");
-        
+
         if (s.progress) {
           setLogs(prev => {
             if (prev.length > 0 && prev[prev.length - 1].text === s.progress) return prev;
@@ -268,7 +268,7 @@ export default function Evaluation() {
         if (s.status === "completed" || s.status === "failed") {
           clearInterval(pollRef.current);
           setLoading(false);
-          
+
           if (s.status === "completed") {
             const r = await getEvalResults(id);
             setResults(r.results);
@@ -432,11 +432,11 @@ export default function Evaluation() {
                 </select>
               </div>
             </div>
-            
+
             {!generatedQaPairs && (
-              <button 
-                className="btn btn-secondary" 
-                onClick={handleLoadPastDataset} 
+              <button
+                className="btn btn-secondary"
+                onClick={handleLoadPastDataset}
                 disabled={loadingPast || !pastJobId}
                 style={{ marginTop: 16 }}
               >
@@ -457,11 +457,11 @@ export default function Evaluation() {
               </div>
               <div className="form-group" style={{ marginBottom: 0, width: "120px" }}>
                 <label># Questions</label>
-                <input 
-                  type="number" 
-                  min={1} max={20} 
-                  value={numQuestions} 
-                  onChange={e => setNumQuestions(Number(e.target.value))} 
+                <input
+                  type="number"
+                  min={1} max={20}
+                  value={numQuestions}
+                  onChange={e => setNumQuestions(Number(e.target.value))}
                 />
               </div>
               <div className="form-group" style={{ marginBottom: 0, width: "180px" }}>
@@ -474,20 +474,20 @@ export default function Evaluation() {
                 </select>
               </div>
             </div>
-            
+
           </div>
         )}
 
         {(questionSrc === "auto" || questionSrc === "past") && generatedQaPairs ? (
           <div style={{ marginTop: 20 }}>
             {!reviewExpanded ? (
-              <div 
+              <div
                 onClick={() => { setReviewExpanded(true); setIsApproved(false); }}
-                style={{ 
-                  padding: "12px 16px", 
-                  border: "1px solid var(--border)", 
-                  borderRadius: 6, 
-                  background: "var(--bg-card-hover)", 
+                style={{
+                  padding: "12px 16px",
+                  border: "1px solid var(--border)",
+                  borderRadius: 6,
+                  background: "var(--bg-card-hover)",
                   cursor: "pointer",
                   display: "flex",
                   justifyContent: "space-between",
@@ -509,25 +509,25 @@ export default function Evaluation() {
                     {questionSrc === "auto" && <button className="btn btn-secondary" onClick={() => { setGeneratedQaPairs(null); setIsApproved(false); }} style={{ padding: "4px 8px", fontSize: 12, height: "auto" }}>Regenerate</button>}
                   </div>
                 </div>
-                
+
                 <div style={{ maxHeight: 400, overflowY: "auto", border: "1px solid var(--border)", borderRadius: 6, padding: 12, marginBottom: 12 }}>
                   {generatedQaPairs.map((pair, idx) => (
                     <div key={idx} style={{ marginBottom: 16, paddingBottom: 16, borderBottom: "1px solid var(--border)" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4}}>
-                         <strong style={{ fontSize: 13, color: "var(--text-dim)" }}>Q{idx + 1}</strong>
-                         <button style={{ background: "transparent", border: "none", color: "var(--text-dim)", cursor: "pointer"}} onClick={() => setGeneratedQaPairs(prev => prev.filter((_, i) => i !== idx))}>🗑️</button>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                        <strong style={{ fontSize: 13, color: "var(--text-dim)" }}>Q{idx + 1}</strong>
+                        <button style={{ background: "transparent", border: "none", color: "var(--text-dim)", cursor: "pointer" }} onClick={() => setGeneratedQaPairs(prev => prev.filter((_, i) => i !== idx))}>🗑️</button>
                       </div>
-                      <input 
-                        type="text" 
-                        value={pair.question} 
+                      <input
+                        type="text"
+                        value={pair.question}
                         placeholder="Question"
-                        onChange={e => setGeneratedQaPairs(prev => { const n=[...prev]; n[idx].question=e.target.value; return n; })}
+                        onChange={e => setGeneratedQaPairs(prev => { const n = [...prev]; n[idx].question = e.target.value; return n; })}
                         style={{ width: "100%", marginBottom: 8, padding: 8, border: "1px solid var(--border)", borderRadius: 4, background: "var(--bg-card)", color: "var(--text)" }}
                       />
-                      <textarea 
-                        value={pair.ground_truth_answer} 
+                      <textarea
+                        value={pair.ground_truth_answer}
                         placeholder="Ground truth answer"
-                        onChange={e => setGeneratedQaPairs(prev => { const n=[...prev]; n[idx].ground_truth_answer=e.target.value; return n; })}
+                        onChange={e => setGeneratedQaPairs(prev => { const n = [...prev]; n[idx].ground_truth_answer = e.target.value; return n; })}
                         style={{ width: "100%", height: 60, resize: "vertical", fontFamily: "inherit", padding: 8, border: "1px solid var(--border)", borderRadius: 4, background: "var(--bg-card)", color: "var(--text)" }}
                       />
                     </div>
@@ -535,8 +535,8 @@ export default function Evaluation() {
                   {generatedQaPairs.length === 0 && <p style={{ color: "var(--text-dim)", textAlign: "center", margin: 0 }}>No questions left.</p>}
                 </div>
 
-                <button 
-                  className="btn btn-primary" 
+                <button
+                  className="btn btn-primary"
                   onClick={() => { setIsApproved(true); setReviewExpanded(false); }}
                   disabled={generatedQaPairs.length === 0}
                   style={{ width: "100%", justifyContent: "center" }}
@@ -566,7 +566,7 @@ export default function Evaluation() {
             </button>
           ) : (
             <button
-               className="btn btn-primary"
+              className="btn btn-primary"
               disabled={loading || !selected.length || ((questionSrc === "auto" || questionSrc === "past") && !isApproved)}
               onClick={start}
             >
@@ -592,8 +592,8 @@ export default function Evaluation() {
               <h3>Results</h3>
               <div className="card-subtitle">Comparing {results.length} search strategies</div>
             </div>
-            <button 
-              className="btn btn-secondary" 
+            <button
+              className="btn btn-secondary"
               onClick={() => exportEvalResults(results)}
               style={{ fontSize: 13, height: 32 }}
             >
