@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { startEvaluation, getEvalStatus, getEvalResults, getDocuments } from "../api";
+import { startEvaluation, getEvalStatus, getEvalResults, getDocuments, generateQuestions } from "../api";
 import { exportEvalResults } from "../utils/exportCsv";
 import {
   Chart as ChartJS,
@@ -129,6 +129,11 @@ export default function Evaluation() {
   const [results, setResults] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  
+  const [numQuestions, setNumQuestions] = useState(10);
+  const [generatedQaPairs, setGeneratedQaPairs] = useState(null);
+  const [generating, setGenerating] = useState(false);
+
   const pollRef = useRef(null);
   const fileRef = useRef();
   const logEndRef = useRef(null);
@@ -154,12 +159,19 @@ export default function Evaluation() {
 
   async function start() {
     if (!selected.length) return;
+    if (questionSrc === "auto" && (!generatedQaPairs || generatedQaPairs.length === 0)) {
+      setError("Please generate and review questions first.");
+      return;
+    }
     setError("");
     setResults(null);
     setLogs([]);
     setLoading(true);
     try {
-      const res = await startEvaluation(selected, questionSrc, file, provider, model, docId);
+      const qaPairsToPass = questionSrc === "auto" ? generatedQaPairs : null;
+      const actualSource = questionSrc === "auto" ? "manual" : questionSrc;
+      
+      const res = await startEvaluation(selected, actualSource, file, provider, model, docId, qaPairsToPass);
       setJobId(res.job_id);
       setStatus("pending");
       setProgressMsg("");
@@ -168,6 +180,21 @@ export default function Evaluation() {
     } catch (e) {
       setError(e.message);
       setLoading(false);
+    }
+  }
+
+  async function handleGenerateQuestions() {
+    if (!docId) return;
+    setError("");
+    setGenerating(true);
+    setGeneratedQaPairs(null);
+    try {
+      const res = await generateQuestions(provider, model, docId, numQuestions);
+      setGeneratedQaPairs(res.questions || []);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setGenerating(false);
     }
   }
 
@@ -326,20 +353,72 @@ export default function Evaluation() {
         ) : (
           <div className="card-body">
             <p style={{ marginBottom: "12px" }}>Auto-generate evaluation questions from your existing documents.</p>
-            <div className="form-group row">
-              <label>Target Document</label>
-              <select value={docId} onChange={e => setDocId(e.target.value)}>
-                {docs.length === 0 ? <option value="">No documents found</option> : null}
-                {docs.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-              </select>
+            <div className="form-row">
+              <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
+                <label>Target Document</label>
+                <select value={docId} onChange={e => setDocId(e.target.value)}>
+                  {docs.length === 0 ? <option value="">No documents found</option> : null}
+                  {docs.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+              </div>
+              <div className="form-group" style={{ marginBottom: 0, width: "120px" }}>
+                <label># Questions</label>
+                <input 
+                  type="number" 
+                  min={1} max={20} 
+                  value={numQuestions} 
+                  onChange={e => setNumQuestions(Number(e.target.value))} 
+                />
+              </div>
             </div>
+            
+            {generatedQaPairs ? (
+              <div style={{ marginTop: 20 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                  <h4 style={{ margin: 0 }}>Review Questions ({generatedQaPairs.length})</h4>
+                  <button className="btn btn-secondary" onClick={() => setGeneratedQaPairs(null)} style={{ padding: "4px 8px", fontSize: 12, height: "auto" }}>Regenerate</button>
+                </div>
+                
+                <div style={{ maxHeight: 400, overflowY: "auto", border: "1px solid var(--border)", borderRadius: 6, padding: 12 }}>
+                  {generatedQaPairs.map((pair, idx) => (
+                    <div key={idx} style={{ marginBottom: 16, paddingBottom: 16, borderBottom: "1px solid var(--border)" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4}}>
+                         <strong style={{ fontSize: 13, color: "var(--text-dim)" }}>Q{idx + 1}</strong>
+                         <button style={{ background: "transparent", border: "none", color: "var(--text-dim)", cursor: "pointer"}} onClick={() => setGeneratedQaPairs(prev => prev.filter((_, i) => i !== idx))}>🗑️</button>
+                      </div>
+                      <input 
+                        type="text" 
+                        value={pair.question} 
+                        onChange={e => setGeneratedQaPairs(prev => { const n=[...prev]; n[idx].question=e.target.value; return n; })}
+                        style={{ width: "100%", marginBottom: 8, padding: 8, border: "1px solid var(--border)", borderRadius: 4, background: "var(--bg-card)", color: "var(--text)" }}
+                      />
+                      <textarea 
+                        value={pair.ground_truth_answer} 
+                        onChange={e => setGeneratedQaPairs(prev => { const n=[...prev]; n[idx].ground_truth_answer=e.target.value; return n; })}
+                        style={{ width: "100%", height: 60, resize: "vertical", fontFamily: "inherit", padding: 8, border: "1px solid var(--border)", borderRadius: 4, background: "var(--bg-card)", color: "var(--text)" }}
+                      />
+                    </div>
+                  ))}
+                  {generatedQaPairs.length === 0 && <p style={{ color: "var(--text-dim)", textAlign: "center", margin: 0 }}>No questions left.</p>}
+                </div>
+              </div>
+            ) : (
+              <button 
+                className="btn btn-secondary" 
+                onClick={handleGenerateQuestions} 
+                disabled={generating || !docId}
+                style={{ marginTop: 16 }}
+              >
+                {generating ? "Generating..." : "⚙️ Auto-Generate Questions"}
+              </button>
+            )}
           </div>
         )}
 
-        <div className="flex gap-8 items-center">
+        <div className="flex gap-8 items-center" style={{ marginTop: 20 }}>
           <button
             className="btn btn-primary"
-            disabled={loading || !selected.length}
+            disabled={loading || !selected.length || (questionSrc === "auto" && (!generatedQaPairs || generatedQaPairs.length === 0))}
             onClick={start}
           >
             {loading ? (

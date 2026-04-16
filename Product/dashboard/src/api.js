@@ -109,7 +109,23 @@ export function connectPipeline(payload, onMessage, onClose) {
 
 // ── Evaluation ──────────────────────────────────────
 
-export async function startEvaluation(searchTypes, questionSource, file, provider, model, docId) {
+export async function generateQuestions(provider, model, docId, numQuestions) {
+  const form = new FormData();
+  form.append("llm_provider", provider || "openai");
+  form.append("llm_model", model || "gpt-4o");
+  form.append("doc_id", docId);
+  form.append("num_questions", numQuestions);
+
+  const res = await fetch(`${EVALUATOR_BASE}/evaluate/generate-questions`, {
+    method: "POST",
+    headers: headers(),
+    body: form,
+  });
+  if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
+  return res.json();
+}
+
+export async function startEvaluation(searchTypes, questionSource, file, provider, model, docId, qaPairs) {
   const form = new FormData();
   form.append("search_types", searchTypes.join(","));
   form.append("question_source", questionSource);
@@ -117,6 +133,7 @@ export async function startEvaluation(searchTypes, questionSource, file, provide
   form.append("llm_model", model || "gpt-4o");
   if (file) form.append("file", file);
   if (docId) form.append("doc_id", docId);
+  if (qaPairs) form.append("qa_pairs", JSON.stringify(qaPairs));
 
   const res = await fetch(`${EVALUATOR_BASE}/evaluate/start`, {
     method: "POST",
