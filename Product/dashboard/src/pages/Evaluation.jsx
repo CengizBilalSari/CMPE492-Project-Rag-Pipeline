@@ -168,6 +168,13 @@ export default function Evaluation() {
     }
   }, [docId, allPastJobs]);
 
+  // Reset loaded questions and approval state if they switch datasets/docs
+  useEffect(() => {
+    setGeneratedQaPairs(null);
+    setIsApproved(false);
+    setReviewExpanded(true);
+  }, [docId, pastJobId, questionSrc]);
+
   function toggle(t) {
     setSelected((prev) =>
       prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]
