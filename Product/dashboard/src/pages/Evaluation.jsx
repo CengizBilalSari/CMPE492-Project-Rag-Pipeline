@@ -465,16 +465,6 @@ export default function Evaluation() {
               </div>
             </div>
             
-            {(!generatedQaPairs && questionSrc === "auto") ? (
-              <button 
-                className="btn btn-secondary" 
-                onClick={handleGenerateQuestions} 
-                disabled={generating || !docId}
-                style={{ marginTop: 16 }}
-              >
-                {generating ? "Generating..." : "⚙️ Auto-Generate Questions"}
-              </button>
-            ) : null}
           </div>
         )}
 
