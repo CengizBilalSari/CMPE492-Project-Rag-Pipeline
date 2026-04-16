@@ -402,34 +402,42 @@ export default function Evaluation() {
                   {generatedQaPairs.length === 0 && <p style={{ color: "var(--text-dim)", textAlign: "center", margin: 0 }}>No questions left.</p>}
                 </div>
               </div>
-            ) : (
-              <button 
-                className="btn btn-secondary" 
-                onClick={handleGenerateQuestions} 
-                disabled={generating || !docId}
-                style={{ marginTop: 16 }}
-              >
-                {generating ? "Generating..." : "⚙️ Auto-Generate Questions"}
-              </button>
-            )}
+            ) : null}
           </div>
         )}
 
         <div className="flex gap-8 items-center" style={{ marginTop: 20 }}>
-          <button
-            className="btn btn-primary"
-            disabled={loading || !selected.length || (questionSrc === "auto" && (!generatedQaPairs || generatedQaPairs.length === 0))}
-            onClick={start}
-          >
-            {loading ? (
-              <>
-                <span style={{ display: "inline-block", animation: "spin 1s linear infinite" }}>⚙</span>
-                {status ? `${status}…` : "Starting…"}
-              </>
-            ) : (
-              "▶ Start Evaluation"
-            )}
-          </button>
+          {questionSrc === "auto" && !generatedQaPairs ? (
+            <button
+              className="btn btn-primary"
+              disabled={generating || !selected.length || !docId}
+              onClick={handleGenerateQuestions}
+            >
+              {generating ? (
+                <>
+                  <span style={{ display: "inline-block", animation: "spin 1s linear infinite", marginRight: 8 }}>⚙</span>
+                  Generating Questions…
+                </>
+              ) : (
+                "⚙️ Auto-Generate Questions"
+              )}
+            </button>
+          ) : (
+            <button
+              className="btn btn-primary"
+              disabled={loading || !selected.length || (questionSrc === "auto" && (!generatedQaPairs || generatedQaPairs.length === 0))}
+              onClick={start}
+            >
+              {loading ? (
+                <>
+                  <span style={{ display: "inline-block", animation: "spin 1s linear infinite", marginRight: 8 }}>⚙</span>
+                  {status ? `${status}…` : "Starting…"}
+                </>
+              ) : (
+                "▶ Start Evaluation"
+              )}
+            </button>
+          )}
         </div>
       </div>
 
