@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { startEvaluation, getEvalStatus, getEvalResults, getDocuments, generateQuestions } from "../api";
+import { startEvaluation, getEvalStatus, getEvalResults, getDocuments, generateQuestions, getEvaluationJobs, getEvaluationJobDetails } from "../api";
 import { exportEvalResults } from "../utils/exportCsv";
 import {
   Chart as ChartJS,
@@ -135,6 +135,10 @@ export default function Evaluation() {
   const [generating, setGenerating] = useState(false);
   const [isApproved, setIsApproved] = useState(false);
   const [reviewExpanded, setReviewExpanded] = useState(true);
+  
+  const [allPastJobs, setAllPastJobs] = useState([]);
+  const [pastJobId, setPastJobId] = useState("");
+  const [loadingPast, setLoadingPast] = useState(false);
 
   const pollRef = useRef(null);
   const fileRef = useRef();
@@ -149,7 +153,20 @@ export default function Evaluation() {
       setDocs(d);
       if (d.length) setDocId(d[0].id);
     });
+    getEvaluationJobs().then(jobs => {
+      setAllPastJobs(jobs);
+    });
   }, []);
+
+  // Update selected past job when document or jobs change
+  useEffect(() => {
+    const docJobs = allPastJobs.filter(j => j.document_id === docId);
+    if (docJobs.length > 0) {
+      setPastJobId(docJobs[0].id);
+    } else {
+      setPastJobId("");
+    }
+  }, [docId, allPastJobs]);
 
   function toggle(t) {
     setSelected((prev) =>
@@ -161,8 +178,8 @@ export default function Evaluation() {
 
   async function start() {
     if (!selected.length) return;
-    if (questionSrc === "auto" && (!generatedQaPairs || generatedQaPairs.length === 0 || !isApproved)) {
-      setError("Please generate, review, and approve questions first.");
+    if ((questionSrc === "auto" || questionSrc === "past") && (!generatedQaPairs || generatedQaPairs.length === 0 || !isApproved)) {
+      setError("Please generate/load, review, and approve questions first.");
       return;
     }
     setError("");
@@ -170,8 +187,8 @@ export default function Evaluation() {
     setLogs([]);
     setLoading(true);
     try {
-      const qaPairsToPass = questionSrc === "auto" ? generatedQaPairs : null;
-      const actualSource = questionSrc === "auto" ? "manual" : questionSrc;
+      const qaPairsToPass = (questionSrc === "auto" || questionSrc === "past") ? generatedQaPairs : null;
+      const actualSource = (questionSrc === "auto" || questionSrc === "past") ? "manual" : questionSrc;
       
       const res = await startEvaluation(selected, actualSource, file, provider, model, docId, qaPairsToPass);
       setJobId(res.job_id);
@@ -199,6 +216,30 @@ export default function Evaluation() {
       setError(e.message);
     } finally {
       setGenerating(false);
+    }
+  }
+
+  async function handleLoadPastDataset() {
+    if (!pastJobId) return;
+    setError("");
+    setLoadingPast(true);
+    setGeneratedQaPairs(null);
+    setIsApproved(false);
+    setReviewExpanded(true);
+    try {
+      const details = await getEvaluationJobDetails(pastJobId);
+      if (details?.qa_pairs) {
+        setGeneratedQaPairs(details.qa_pairs.map(p => ({
+          question: p.question,
+          ground_truth_answer: p.ground_truth_answer
+        })));
+      } else {
+        setError("No questions found in this past dataset.");
+      }
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoadingPast(false);
     }
   }
 
@@ -328,11 +369,19 @@ export default function Evaluation() {
           </div>
           <div
             className={`radio-opt ${questionSrc === "custom" ? "selected" : ""}`}
-            onClick={() => setQuestionSrc("custom")}
+            onClick={() => { setQuestionSrc("custom"); setGeneratedQaPairs(null); setIsApproved(false); }}
           >
             <input type="radio" readOnly checked={questionSrc === "custom"} />
             <div className="radio-opt-label">📂 Upload CSV</div>
             <div className="radio-opt-desc">question, ground_truth_answer columns</div>
+          </div>
+          <div
+            className={`radio-opt ${questionSrc === "past" ? "selected" : ""}`}
+            onClick={() => { setQuestionSrc("past"); setGeneratedQaPairs(null); setIsApproved(false); }}
+          >
+            <input type="radio" readOnly checked={questionSrc === "past"} />
+            <div className="radio-opt-label">💾 Past Dataset</div>
+            <div className="radio-opt-desc">Reuse questions generated in the past</div>
           </div>
         </div>
 
@@ -353,6 +402,39 @@ export default function Evaluation() {
               accept=".csv"
               onChange={(e) => setFile(e.target.files[0])}
             />
+          </div>
+        ) : questionSrc === "past" ? (
+          <div className="card-body">
+            <p style={{ marginBottom: "12px" }}>Load a previously generated dataset for the selected document.</p>
+            <div className="form-row">
+              <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
+                <label>Target Document</label>
+                <select value={docId} onChange={e => setDocId(e.target.value)}>
+                  {docs.length === 0 ? <option value="">No documents found</option> : null}
+                  {docs.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+              </div>
+              <div className="form-group" style={{ marginBottom: 0, flex: 2 }}>
+                <label>Select Past Dataset</label>
+                <select value={pastJobId} onChange={e => setPastJobId(e.target.value)}>
+                  {allPastJobs.filter(j => j.document_id === docId).length === 0 ? <option value="">No past datasets found for this document</option> : null}
+                  {allPastJobs.filter(j => j.document_id === docId).map(j => (
+                    <option key={j.id} value={j.id}>{new Date(j.created_at).toLocaleString()} - source: {j.question_source}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            
+            {!generatedQaPairs && (
+              <button 
+                className="btn btn-secondary" 
+                onClick={handleLoadPastDataset} 
+                disabled={loadingPast || !pastJobId}
+                style={{ marginTop: 16 }}
+              >
+                {loadingPast ? "Loading..." : "⬇️ Load Selected Dataset"}
+              </button>
+            )}
           </div>
         ) : (
           <div className="card-body">
@@ -376,77 +458,88 @@ export default function Evaluation() {
               </div>
             </div>
             
-            {generatedQaPairs ? (
-              <div style={{ marginTop: 20 }}>
-                {!reviewExpanded ? (
-                  <div 
-                    onClick={() => { setReviewExpanded(true); setIsApproved(false); }}
-                    style={{ 
-                      padding: "12px 16px", 
-                      border: "1px solid var(--border)", 
-                      borderRadius: 6, 
-                      background: "var(--bg-card-hover)", 
-                      cursor: "pointer",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center"
-                    }}
-                  >
-                    <div>
-                      <span style={{ marginRight: 8 }}>✅</span>
-                      <strong>Approved Dataset</strong> — Document: {docs.find(d => d.id === docId)?.name || docId}
-                    </div>
-                    <span style={{ color: "var(--text-dim)", fontSize: 13 }}>{generatedQaPairs.length} questions (Click to edit)</span>
-                  </div>
-                ) : (
-                  <>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                      <h4 style={{ margin: 0 }}>Review Questions ({generatedQaPairs.length})</h4>
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <button className="btn btn-secondary" onClick={() => setGeneratedQaPairs([...generatedQaPairs, { question: "", ground_truth_answer: "" }])} style={{ padding: "4px 8px", fontSize: 12, height: "auto" }}>➕ Add Question</button>
-                        <button className="btn btn-secondary" onClick={() => { setGeneratedQaPairs(null); setIsApproved(false); }} style={{ padding: "4px 8px", fontSize: 12, height: "auto" }}>Regenerate</button>
-                      </div>
-                    </div>
-                    
-                    <div style={{ maxHeight: 400, overflowY: "auto", border: "1px solid var(--border)", borderRadius: 6, padding: 12, marginBottom: 12 }}>
-                      {generatedQaPairs.map((pair, idx) => (
-                        <div key={idx} style={{ marginBottom: 16, paddingBottom: 16, borderBottom: "1px solid var(--border)" }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4}}>
-                             <strong style={{ fontSize: 13, color: "var(--text-dim)" }}>Q{idx + 1}</strong>
-                             <button style={{ background: "transparent", border: "none", color: "var(--text-dim)", cursor: "pointer"}} onClick={() => setGeneratedQaPairs(prev => prev.filter((_, i) => i !== idx))}>🗑️</button>
-                          </div>
-                          <input 
-                            type="text" 
-                            value={pair.question} 
-                            placeholder="Question"
-                            onChange={e => setGeneratedQaPairs(prev => { const n=[...prev]; n[idx].question=e.target.value; return n; })}
-                            style={{ width: "100%", marginBottom: 8, padding: 8, border: "1px solid var(--border)", borderRadius: 4, background: "var(--bg-card)", color: "var(--text)" }}
-                          />
-                          <textarea 
-                            value={pair.ground_truth_answer} 
-                            placeholder="Ground truth answer"
-                            onChange={e => setGeneratedQaPairs(prev => { const n=[...prev]; n[idx].ground_truth_answer=e.target.value; return n; })}
-                            style={{ width: "100%", height: 60, resize: "vertical", fontFamily: "inherit", padding: 8, border: "1px solid var(--border)", borderRadius: 4, background: "var(--bg-card)", color: "var(--text)" }}
-                          />
-                        </div>
-                      ))}
-                      {generatedQaPairs.length === 0 && <p style={{ color: "var(--text-dim)", textAlign: "center", margin: 0 }}>No questions left.</p>}
-                    </div>
-
-                    <button 
-                      className="btn btn-primary" 
-                      onClick={() => { setIsApproved(true); setReviewExpanded(false); }}
-                      disabled={generatedQaPairs.length === 0}
-                      style={{ width: "100%", justifyContent: "center" }}
-                    >
-                      ✅ Approve Dataset
-                    </button>
-                  </>
-                )}
-              </div>
+            {(!generatedQaPairs && questionSrc === "auto") ? (
+              <button 
+                className="btn btn-secondary" 
+                onClick={handleGenerateQuestions} 
+                disabled={generating || !docId}
+                style={{ marginTop: 16 }}
+              >
+                {generating ? "Generating..." : "⚙️ Auto-Generate Questions"}
+              </button>
             ) : null}
           </div>
         )}
+
+        {(questionSrc === "auto" || questionSrc === "past") && generatedQaPairs ? (
+          <div style={{ marginTop: 20 }}>
+            {!reviewExpanded ? (
+              <div 
+                onClick={() => { setReviewExpanded(true); setIsApproved(false); }}
+                style={{ 
+                  padding: "12px 16px", 
+                  border: "1px solid var(--border)", 
+                  borderRadius: 6, 
+                  background: "var(--bg-card-hover)", 
+                  cursor: "pointer",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center"
+                }}
+              >
+                <div>
+                  <span style={{ marginRight: 8 }}>✅</span>
+                  <strong>Approved Dataset</strong> — Document: {docs.find(d => d.id === docId)?.name || docId}
+                </div>
+                <span style={{ color: "var(--text-dim)", fontSize: 13 }}>{generatedQaPairs.length} questions (Click to edit)</span>
+              </div>
+            ) : (
+              <>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                  <h4 style={{ margin: 0 }}>Review Questions ({generatedQaPairs.length})</h4>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button className="btn btn-secondary" onClick={() => setGeneratedQaPairs([...generatedQaPairs, { question: "", ground_truth_answer: "" }])} style={{ padding: "4px 8px", fontSize: 12, height: "auto" }}>➕ Add Question</button>
+                    {questionSrc === "auto" && <button className="btn btn-secondary" onClick={() => { setGeneratedQaPairs(null); setIsApproved(false); }} style={{ padding: "4px 8px", fontSize: 12, height: "auto" }}>Regenerate</button>}
+                  </div>
+                </div>
+                
+                <div style={{ maxHeight: 400, overflowY: "auto", border: "1px solid var(--border)", borderRadius: 6, padding: 12, marginBottom: 12 }}>
+                  {generatedQaPairs.map((pair, idx) => (
+                    <div key={idx} style={{ marginBottom: 16, paddingBottom: 16, borderBottom: "1px solid var(--border)" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4}}>
+                         <strong style={{ fontSize: 13, color: "var(--text-dim)" }}>Q{idx + 1}</strong>
+                         <button style={{ background: "transparent", border: "none", color: "var(--text-dim)", cursor: "pointer"}} onClick={() => setGeneratedQaPairs(prev => prev.filter((_, i) => i !== idx))}>🗑️</button>
+                      </div>
+                      <input 
+                        type="text" 
+                        value={pair.question} 
+                        placeholder="Question"
+                        onChange={e => setGeneratedQaPairs(prev => { const n=[...prev]; n[idx].question=e.target.value; return n; })}
+                        style={{ width: "100%", marginBottom: 8, padding: 8, border: "1px solid var(--border)", borderRadius: 4, background: "var(--bg-card)", color: "var(--text)" }}
+                      />
+                      <textarea 
+                        value={pair.ground_truth_answer} 
+                        placeholder="Ground truth answer"
+                        onChange={e => setGeneratedQaPairs(prev => { const n=[...prev]; n[idx].ground_truth_answer=e.target.value; return n; })}
+                        style={{ width: "100%", height: 60, resize: "vertical", fontFamily: "inherit", padding: 8, border: "1px solid var(--border)", borderRadius: 4, background: "var(--bg-card)", color: "var(--text)" }}
+                      />
+                    </div>
+                  ))}
+                  {generatedQaPairs.length === 0 && <p style={{ color: "var(--text-dim)", textAlign: "center", margin: 0 }}>No questions left.</p>}
+                </div>
+
+                <button 
+                  className="btn btn-primary" 
+                  onClick={() => { setIsApproved(true); setReviewExpanded(false); }}
+                  disabled={generatedQaPairs.length === 0}
+                  style={{ width: "100%", justifyContent: "center" }}
+                >
+                  ✅ Approve Dataset
+                </button>
+              </>
+            )}
+          </div>
+        ) : null}
 
         <div className="flex gap-8 items-center" style={{ marginTop: 20 }}>
           {questionSrc === "auto" && !generatedQaPairs ? (
@@ -466,8 +559,8 @@ export default function Evaluation() {
             </button>
           ) : (
             <button
-              className="btn btn-primary"
-              disabled={loading || !selected.length || (questionSrc === "auto" && !isApproved)}
+               className="btn btn-primary"
+              disabled={loading || !selected.length || ((questionSrc === "auto" || questionSrc === "past") && !isApproved)}
               onClick={start}
             >
               {loading ? (
