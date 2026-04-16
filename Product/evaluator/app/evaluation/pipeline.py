@@ -44,7 +44,7 @@ class QuestionGenerator:
         
         # --- 1. GLOBAL QUESTIONS ---
         # Global questions need large context to evaluate high-level synthesis and overarching themes.
-        global_chunk_size = 2000
+        global_chunk_size = 30000
         global_chunks = [text[i:i+global_chunk_size] for i in range(0, len(text), global_chunk_size)]
         
         if len(global_chunks) > num_global:
@@ -124,7 +124,7 @@ Return ONLY a valid JSON object:
 
         # --- 2. LOCAL QUESTIONS ---
         # Local questions need smaller, focused chunks to ask about specific entities & fast retrieval.
-        local_chunk_size = 500
+        local_chunk_size = 4000
         local_chunks = [text[i:i+local_chunk_size] for i in range(0, len(text), local_chunk_size)]
         
         if len(local_chunks) > num_local:
