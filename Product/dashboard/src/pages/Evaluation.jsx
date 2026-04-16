@@ -376,7 +376,10 @@ export default function Evaluation() {
               <div style={{ marginTop: 20 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                   <h4 style={{ margin: 0 }}>Review Questions ({generatedQaPairs.length})</h4>
-                  <button className="btn btn-secondary" onClick={() => setGeneratedQaPairs(null)} style={{ padding: "4px 8px", fontSize: 12, height: "auto" }}>Regenerate</button>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button className="btn btn-secondary" onClick={() => setGeneratedQaPairs([...generatedQaPairs, { question: "", ground_truth_answer: "" }])} style={{ padding: "4px 8px", fontSize: 12, height: "auto" }}>➕ Add Question</button>
+                    <button className="btn btn-secondary" onClick={() => setGeneratedQaPairs(null)} style={{ padding: "4px 8px", fontSize: 12, height: "auto" }}>Regenerate</button>
+                  </div>
                 </div>
                 
                 <div style={{ maxHeight: 400, overflowY: "auto", border: "1px solid var(--border)", borderRadius: 6, padding: 12 }}>
