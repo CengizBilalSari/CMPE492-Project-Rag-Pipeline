@@ -489,7 +489,7 @@ export default function Evaluation() {
               >
                 <div>
                   <span style={{ marginRight: 8 }}>✅</span>
-                  <strong>Approved Dataset</strong> — Document: {docs.find(d => d.id === docId)?.name || docId}
+                  <strong>Approved Dataset {questionSrc === "auto" ? "- New" : `- Reused (${allPastJobs.find(j => j.id === pastJobId)?.created_at ? new Date(allPastJobs.find(j => j.id === pastJobId).created_at).toLocaleString() : ''})`}</strong> — Document: {docs.find(d => d.id === docId)?.name || docId}
                 </div>
                 <span style={{ color: "var(--text-dim)", fontSize: 13 }}>{generatedQaPairs.length} questions (Click to edit)</span>
               </div>
