@@ -1,6 +1,65 @@
 import { useState, useEffect } from "react";
-import { getPipelineRuns, getEvaluationJobs, getEvaluationJobDetails } from "../api";
+import { getPipelineRuns, getEvaluationJobs, getEvaluationJobDetails, getDocuments } from "../api";
 import { exportEvalResults, exportEvalDetails } from "../utils/exportCsv";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+} from "chart.js";
+import { Bar } from "react-chartjs-2";
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+
+const CHART_COLORS = [
+  "rgba(139,92,246,0.7)",
+  "rgba(34,211,238,0.7)",
+  "rgba(16,185,129,0.7)",
+  "rgba(245,158,11,0.7)",
+  "rgba(239,68,68,0.7)",
+  "rgba(99,102,241,0.7)",
+];
+
+const CHART_BORDERS = [
+  "rgba(139,92,246,1)",
+  "rgba(34,211,238,1)",
+  "rgba(16,185,129,1)",
+  "rgba(245,158,11,1)",
+  "rgba(239,68,68,1)",
+  "rgba(99,102,241,1)",
+];
+
+function makeChart(title, labels, values) {
+  return {
+    labels,
+    datasets: [
+      {
+        label: title,
+        data: values,
+        backgroundColor: CHART_COLORS.slice(0, labels.length),
+        borderColor: CHART_BORDERS.slice(0, labels.length),
+        borderWidth: 1.5,
+        borderRadius: 6,
+      },
+    ],
+  };
+}
+
+const chartOpts = (title) => ({
+  responsive: true,
+  plugins: {
+    legend: { display: false },
+    title: { display: true, text: title, font: { size: 12, family: "'Inter', sans-serif", weight: "600" }, color: "#64748b", padding: { bottom: 12 } },
+    tooltip: { backgroundColor: "rgba(15,17,32,0.95)", borderColor: "rgba(139,92,246,0.3)", borderWidth: 1, titleColor: "#e2e8f0", bodyColor: "#94a3b8", padding: 10 },
+  },
+  scales: {
+    y: { beginAtZero: true, grid: { color: "rgba(255,255,255,0.05)" }, ticks: { color: "#64748b", font: { size: 11 } } },
+    x: { grid: { display: false }, ticks: { color: "#94a3b8", font: { size: 11 } } },
+  },
+});
 
 function Badge({ status }) {
   const s = (status || "").toLowerCase();
@@ -32,6 +91,7 @@ export default function History() {
   const [selectedRun, setSelectedRun] = useState(null);
   const [selectedJob, setSelectedJob] = useState(null);
   const [jobDetails, setJobDetails] = useState(null);
+  const [docs, setDocs] = useState([]);
 
   async function handleJobClick(job) {
     setSelectedJob(job);
@@ -43,6 +103,7 @@ export default function History() {
   useEffect(() => {
     getPipelineRuns().then(setRuns);
     getEvaluationJobs().then(setJobs);
+    getDocuments().then(setDocs);
   }, []);
 
   return (
@@ -146,15 +207,19 @@ export default function History() {
                 <thead>
                   <tr>
                     <th>Job ID</th>
+                    <th>Document</th>
                     <th>Search Types</th>
                     <th>Status</th>
-                    <th>Created</th>
+                    <th>Created At</th>
                   </tr>
                 </thead>
                 <tbody>
                   {jobs.map((j) => (
                     <tr key={j.id} className="clickable-row" onClick={() => handleJobClick(j)}>
                       <td className="td-mono">{j.id.slice(0, 8)}…</td>
+                      <td style={{ fontWeight: 500 }}>
+                        📄 {docs.find(d => d.id === j.document_id)?.name || (j.document_id ? j.document_id.slice(0, 8) + '…' : 'Unknown')}
+                      </td>
                       <td>
                         <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                           {(Array.isArray(j.search_types)
@@ -168,7 +233,7 @@ export default function History() {
                         </div>
                       </td>
                       <td><Badge status={j.status} /></td>
-                      <td><RelTime iso={j.created_at} /></td>
+                      <td>{new Date(j.created_at).toLocaleString()}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -337,6 +402,23 @@ export default function History() {
                         </tbody>
                       </table>
                     </div>
+                    
+                    <div className="chart-grid" style={{ marginTop: 24 }}>
+                      {[
+                        { key: "answer_accuracy", title: "Answer Accuracy (0–10)" },
+                        { key: "context_relevance", title: "Context Relevance (0–10)" },
+                        { key: "time_per_request", title: "Avg Time per Request (s)" },
+                        { key: "token_cost", title: "Total Token Cost" },
+                      ].map(({ key, title }) => (
+                        <div className="chart-card" key={key}>
+                          <Bar
+                            data={makeChart(title, jobDetails.results.map((r) => r.search_type), jobDetails.results.map((r) => r[key]))}
+                            options={chartOpts(title)}
+                          />
+                        </div>
+                      ))}
+                    </div>
+
                   </div>
                 )}
 
