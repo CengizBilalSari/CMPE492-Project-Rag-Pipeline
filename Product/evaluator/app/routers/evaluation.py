@@ -139,7 +139,7 @@ async def generate_questions(
     llm_model: str = Form("gpt-4o"),
     doc_id: str = Form(...),
     num_questions: int = Form(10),
-    chunk_strategy: str = Form("semantic"),
+    chunk_strategy: str = Form("recursive"),
     x_chat_id: str = Header(..., alias="X-Chat-Id"),
 ):
     """Generate questions from a document synchronously for review."""

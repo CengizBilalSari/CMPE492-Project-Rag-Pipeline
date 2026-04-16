@@ -33,13 +33,10 @@ class QuestionGenerator:
         self,
         text: str,
         num_questions: int = 10,
-        chunk_strategy: str = "semantic",
+        chunk_strategy: str = "recursive",
     ) -> List[dict]:
         """Generate QA pairs from raw document text, partitioned into Global and Local questions."""
         import math
-        
-        if chunk_strategy == "summarization":
-            raise NotImplementedError("Summarization chunking strategy is coming soon.")
         
         num_global = num_questions // 2
         num_local = num_questions - num_global
@@ -47,7 +44,45 @@ class QuestionGenerator:
         all_qa_pairs = []
         
         # --- 1. GLOBAL QUESTIONS ---
-        if chunk_strategy == "semantic":
+        if chunk_strategy == "summarization":
+            from langchain_text_splitters import RecursiveCharacterTextSplitter
+            splitter = RecursiveCharacterTextSplitter(chunk_size=15000, chunk_overlap=1500)
+            raw_chunks = splitter.split_text(text)
+            
+            summaries = []
+            for raw in raw_chunks:
+                sys_prompt = "You are an expert summarizer. Summarize the following document chunk, highlighting main themes, relationships, and important narratives. Return only the summary text."
+                try:
+                    if self.provider == "lmstudio":
+                        import httpx
+                        payload = {"model": self.model, "messages": [{"role": "system", "content": sys_prompt}, {"role": "user", "content": raw}], "temperature": 0.0, "max_tokens": 2048}
+                        res = httpx.post(self.base_url, json=payload, timeout=120.0)
+                        res.raise_for_status()
+                        summary = res.json()["choices"][0]["message"]["content"] or ""
+                    else:
+                        resp = self.client.chat.completions.create(model=self.model, messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": raw}])
+                        summary = resp.choices[0].message.content or ""
+                    if summary:
+                        summaries.append(summary)
+                except Exception as exc:
+                    logger.error("Failed to summarize chunk: %s", exc)
+            
+            combined_summary = "\n\n".join(summaries)
+            global_chunks = [combined_summary] if combined_summary else [text[:10000]]
+            
+        elif chunk_strategy == "semantic":
+            try:
+                from langchain_huggingface import HuggingFaceEmbeddings
+                from langchain_experimental.text_splitter import SemanticChunker as LCSemanticChunker
+                embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+                global_splitter = LCSemanticChunker(embeddings=embeddings)
+                docs = global_splitter.create_documents([text])
+                global_chunks = [doc.page_content for doc in docs]
+            except ImportError:
+                logger.error("langchain_experimental or langchain_huggingface is missing.")
+                global_chunks = [text[:2000]]
+                
+        elif chunk_strategy == "recursive":
             from langchain_text_splitters import RecursiveCharacterTextSplitter
             global_splitter = RecursiveCharacterTextSplitter(
                 chunk_size=10000,
@@ -55,7 +90,7 @@ class QuestionGenerator:
                 separators=["\n\n", "\n", " ", ""]
             )
             global_chunks = global_splitter.split_text(text)
-        else:
+        else: # "character"
             global_chunk_size = 2000
             global_chunks = [text[i:i+global_chunk_size] for i in range(0, len(text), global_chunk_size)]
         
@@ -136,6 +171,17 @@ Return ONLY a valid JSON object:
 
         # --- 2. LOCAL QUESTIONS ---
         if chunk_strategy == "semantic":
+            try:
+                from langchain_huggingface import HuggingFaceEmbeddings
+                from langchain_experimental.text_splitter import SemanticChunker as LCSemanticChunker
+                embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+                local_splitter = LCSemanticChunker(embeddings=embeddings)
+                docs = local_splitter.create_documents([text])
+                local_chunks = [doc.page_content for doc in docs]
+            except ImportError:
+                local_chunks = [text[:500]]
+                
+        elif chunk_strategy in ("recursive", "summarization"):
             from langchain_text_splitters import RecursiveCharacterTextSplitter
             local_splitter = RecursiveCharacterTextSplitter(
                 chunk_size=2000,
@@ -143,7 +189,7 @@ Return ONLY a valid JSON object:
                 separators=["\n\n", "\n", ".", " ", ""]
             )
             local_chunks = local_splitter.split_text(text)
-        else:
+        else: # "character"
             local_chunk_size = 500
             local_chunks = [text[i:i+local_chunk_size] for i in range(0, len(text), local_chunk_size)]
         

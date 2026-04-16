@@ -109,7 +109,7 @@ export function connectPipeline(payload, onMessage, onClose) {
 
 // ── Evaluation ──────────────────────────────────────
 
-export async function generateQuestions(provider, model, docId, numQuestions, chunkStrategy = "semantic") {
+export async function generateQuestions(provider, model, docId, numQuestions, chunkStrategy = "recursive") {
   const form = new FormData();
   form.append("llm_provider", provider || "openai");
   form.append("llm_model", model || "gpt-4o");

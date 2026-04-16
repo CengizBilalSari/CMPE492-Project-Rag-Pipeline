@@ -131,7 +131,7 @@ export default function Evaluation() {
   const [loading, setLoading] = useState(false);
   
   const [numQuestions, setNumQuestions] = useState(10);
-  const [chunkStrategy, setChunkStrategy] = useState("semantic");
+  const [chunkStrategy, setChunkStrategy] = useState("recursive");
   const [generatedQaPairs, setGeneratedQaPairs] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [isApproved, setIsApproved] = useState(false);
@@ -467,9 +467,10 @@ export default function Evaluation() {
               <div className="form-group" style={{ marginBottom: 0, width: "180px" }}>
                 <label>Chunking Strategy</label>
                 <select value={chunkStrategy} onChange={e => setChunkStrategy(e.target.value)}>
-                  <option value="semantic">Semantic Overlap</option>
-                  <option value="basic">Basic (Legacy)</option>
-                  <option value="summarization" disabled>Summarization (Soon)</option>
+                  <option value="recursive">Recursive</option>
+                  <option value="semantic">Semantic</option>
+                  <option value="summarization">Summarization</option>
+                  <option value="character">Character</option>
                 </select>
               </div>
             </div>
