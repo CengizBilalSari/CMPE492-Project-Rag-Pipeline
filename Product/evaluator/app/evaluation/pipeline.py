@@ -33,9 +33,13 @@ class QuestionGenerator:
         self,
         text: str,
         num_questions: int = 10,
+        chunk_strategy: str = "semantic",
     ) -> List[dict]:
         """Generate QA pairs from raw document text, partitioned into Global and Local questions."""
         import math
+        
+        if chunk_strategy == "summarization":
+            raise NotImplementedError("Summarization chunking strategy is coming soon.")
         
         num_global = num_questions // 2
         num_local = num_questions - num_global
@@ -43,9 +47,17 @@ class QuestionGenerator:
         all_qa_pairs = []
         
         # --- 1. GLOBAL QUESTIONS ---
-        # Global questions need large context to evaluate high-level synthesis and overarching themes.
-        global_chunk_size = 30000
-        global_chunks = [text[i:i+global_chunk_size] for i in range(0, len(text), global_chunk_size)]
+        if chunk_strategy == "semantic":
+            from langchain_text_splitters import RecursiveCharacterTextSplitter
+            global_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=10000,
+                chunk_overlap=1500,
+                separators=["\n\n", "\n", " ", ""]
+            )
+            global_chunks = global_splitter.split_text(text)
+        else:
+            global_chunk_size = 2000
+            global_chunks = [text[i:i+global_chunk_size] for i in range(0, len(text), global_chunk_size)]
         
         if len(global_chunks) > num_global:
             step = max(1, len(global_chunks) // num_global)
@@ -123,9 +135,17 @@ Return ONLY a valid JSON object:
 
 
         # --- 2. LOCAL QUESTIONS ---
-        # Local questions need smaller, focused chunks to ask about specific entities & fast retrieval.
-        local_chunk_size = 4000
-        local_chunks = [text[i:i+local_chunk_size] for i in range(0, len(text), local_chunk_size)]
+        if chunk_strategy == "semantic":
+            from langchain_text_splitters import RecursiveCharacterTextSplitter
+            local_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=2000,
+                chunk_overlap=400,
+                separators=["\n\n", "\n", ".", " ", ""]
+            )
+            local_chunks = local_splitter.split_text(text)
+        else:
+            local_chunk_size = 500
+            local_chunks = [text[i:i+local_chunk_size] for i in range(0, len(text), local_chunk_size)]
         
         if len(local_chunks) > num_local:
             step = max(1, len(local_chunks) // num_local)
