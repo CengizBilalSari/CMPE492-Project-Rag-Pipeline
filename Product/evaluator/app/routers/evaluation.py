@@ -139,7 +139,6 @@ async def generate_questions(
     llm_model: str = Form("gpt-4o"),
     doc_id: str = Form(...),
     num_questions: int = Form(10),
-    chunk_strategy: str = Form("recursive"),
     x_chat_id: str = Header(..., alias="X-Chat-Id"),
 ):
     """Generate questions from a document synchronously for review."""
@@ -169,7 +168,7 @@ async def generate_questions(
     from app.evaluation.pipeline import QuestionGenerator
     generator = QuestionGenerator(provider=llm_provider, model=llm_model)
     try:
-        qa_pairs = generator.generate_from_text(text, num_questions=num_questions, chunk_strategy=chunk_strategy)
+        qa_pairs = generator.generate_from_text(text, num_questions=num_questions)
         return {"questions": qa_pairs}
     except Exception as e:
         logger.error("Failed to generate questions: %s", e)

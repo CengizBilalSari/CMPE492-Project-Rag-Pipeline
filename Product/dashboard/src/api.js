@@ -109,13 +109,12 @@ export function connectPipeline(payload, onMessage, onClose) {
 
 // ── Evaluation ──────────────────────────────────────
 
-export async function generateQuestions(provider, model, docId, numQuestions, chunkStrategy = "recursive") {
+export async function generateQuestions(provider, model, docId, numQuestions) {
   const form = new FormData();
   form.append("llm_provider", provider || "openai");
   form.append("llm_model", model || "gpt-4o");
   form.append("doc_id", docId);
   form.append("num_questions", numQuestions);
-  form.append("chunk_strategy", chunkStrategy);
 
   const res = await fetch(`${EVALUATOR_BASE}/evaluate/generate-questions`, {
     method: "POST",
