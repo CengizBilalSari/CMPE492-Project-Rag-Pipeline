@@ -14,7 +14,7 @@ import { Bar } from "react-chartjs-2";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
-const SEARCH_TYPES = ["global", "local", "lazy", "ppr", "rag", "no-retriever"];
+const SEARCH_TYPES = ["global", "local", "ppr", "rag", "no-retriever"];
 
 const PROVIDERS = ["openai", "lmstudio"];
 const MODELS = {
