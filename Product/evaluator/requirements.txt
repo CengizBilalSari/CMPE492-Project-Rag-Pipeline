@@ -16,6 +16,8 @@ graphdatascience==1.19
 # Text processing
 sentence-transformers==3.4.1
 langchain-text-splitters==1.1.0
+langchain-huggingface==1.2.0
+langchain-experimental==0.4.1
 tiktoken==0.11.0
 nltk==3.9.2
 

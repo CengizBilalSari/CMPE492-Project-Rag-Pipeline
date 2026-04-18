@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import json
 import logging
 from typing import List, Optional
 
@@ -38,6 +39,7 @@ async def start_evaluation(
     llm_provider: str = Form("lmstudio"),
     llm_model: str = Form("gpt-4o"),
     doc_id: Optional[str] = Form(None),
+    qa_pairs: Optional[str] = Form(None),
     x_chat_id: str = Header(..., alias="X-Chat-Id"),
     file: Optional[UploadFile] = File(None),
 ):
@@ -60,18 +62,25 @@ async def start_evaluation(
             detail=f"Invalid search types: {invalid}. Choose from: {valid}",
         )
 
-    if question_source not in ("custom", "auto"):
-        raise HTTPException(status_code=400, detail="question_source must be 'custom' or 'auto'.")
+    if question_source not in ("custom", "auto", "manual"):
+        raise HTTPException(status_code=400, detail="question_source must be 'custom', 'auto', or 'manual'.")
 
     uploaded_csv_bytes: Optional[bytes] = None
     document_texts: Optional[List[str]] = None
+    parsed_qa_pairs: Optional[List[dict]] = None
+
+    if qa_pairs:
+        try:
+            parsed_qa_pairs = json.loads(qa_pairs)
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="qa_pairs must be valid JSON")
 
     if question_source == "custom":
         if not file:
             raise HTTPException(status_code=400, detail="CSV file is required when question_source='custom'.")
         uploaded_csv_bytes = await file.read()
 
-    elif question_source == "auto":
+    elif question_source == "auto" and not parsed_qa_pairs:
         with connection() as conn:
             with conn.cursor() as cur:
                 if doc_id:
@@ -116,11 +125,54 @@ async def start_evaluation(
         question_source=question_source,
         uploaded_csv_bytes=uploaded_csv_bytes,
         document_texts=document_texts,
+        provided_qa_pairs=parsed_qa_pairs,
         llm_provider=llm_provider,
         llm_model=llm_model,
     )
 
     return {"job_id": job_id, "status": "pending"}
+
+
+@router.post("/generate-questions")
+async def generate_questions(
+    llm_provider: str = Form("lmstudio"),
+    llm_model: str = Form("gpt-4o"),
+    doc_id: str = Form(...),
+    num_questions: int = Form(10),
+    x_chat_id: str = Header(..., alias="X-Chat-Id"),
+):
+    """Generate questions from a document synchronously for review."""
+    if num_questions < 1 or num_questions > 20:
+        raise HTTPException(status_code=400, detail="num_questions must be between 1 and 20.")
+
+    with connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT path, content_type FROM documents WHERE id = %s AND chat_id = %s",
+                (doc_id, x_chat_id),
+            )
+            doc = cur.fetchone()
+
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found.")
+
+    try:
+        file_bytes = read_document_bytes(dict(doc)["path"])
+        text = _extract_text(file_bytes, dict(doc).get("content_type", ""))
+        if not text.strip():
+            raise ValueError("Document text is empty.")
+    except Exception as e:
+        logger.warning("Failed to extract text: %s", e)
+        raise HTTPException(status_code=500, detail="Could not extract text from document.")
+
+    from app.evaluation.pipeline import QuestionGenerator
+    generator = QuestionGenerator(provider=llm_provider, model=llm_model)
+    try:
+        qa_pairs = generator.generate_from_text(text, num_questions=num_questions)
+        return {"questions": qa_pairs}
+    except Exception as e:
+        logger.error("Failed to generate questions: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/status/{job_id}", response_model=EvaluationJobStatus)
