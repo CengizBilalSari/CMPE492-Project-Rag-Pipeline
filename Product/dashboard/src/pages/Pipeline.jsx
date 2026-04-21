@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from "react";
-import { connectPipeline, getDocuments } from "../api";
+import { connectPipeline, getDocuments, getPipelineConfig } from "../api";
 
-const PROVIDERS = ["openai", "lmstudio"];
-const MODELS = {
+// Fallbacks used until the API response arrives
+const DEFAULT_PROVIDERS = ["openai", "lmstudio"];
+const DEFAULT_MODELS = {
   openai: ["gpt-4o", "gpt-4o-mini"],
   lmstudio: [
     "deepseek/deepseek-r1-0528-qwen3-8b",
@@ -10,9 +11,12 @@ const MODELS = {
     "google/gemma-4-31b",
   ],
 };
-const CHUNKERS = [
+const DEFAULT_CHUNKERS = [
   "sentence", "token", "character",
   "recursive", "semantic", "propositional",
+];
+const DEFAULT_EMBEDDING_MODELS = [
+  { name: "all-MiniLM-L6-v2", dimensions: 384, description: "Fast, lightweight, classic default" },
 ];
 
 const PIPELINE_STEPS = [
@@ -50,10 +54,11 @@ export default function Pipeline() {
   const [docs, setDocs] = useState([]);
   const [docId, setDocId] = useState("");
   const [provider, setProvider] = useState("lmstudio");
-  const [model, setModel] = useState(MODELS.lmstudio[0]);
+  const [model, setModel] = useState(DEFAULT_MODELS.lmstudio[0]);
   const [chunker, setChunker] = useState("recursive");
   const [chunkSize, setChunkSize] = useState(512);
   const [overlap, setOverlap] = useState(50);
+  const [embeddingModel, setEmbeddingModel] = useState(localStorage.getItem("graphrag_embedding_model") || "all-MiniLM-L6-v2");
   const [useLlmRes, setUseLlmRes] = useState(true);
   const [logs, setLogs] = useState([]);
   const [running, setRunning] = useState(false);
@@ -63,14 +68,31 @@ export default function Pipeline() {
   const wsRef = useRef(null);
   const logEndRef = useRef(null);
 
+  // Dynamic config from backend
+  const [llmProviders, setLlmProviders] = useState(DEFAULT_MODELS);
+  const [embeddingModels, setEmbeddingModels] = useState(DEFAULT_EMBEDDING_MODELS);
+  const [chunkers, setChunkers] = useState(DEFAULT_CHUNKERS);
+
   useEffect(() => {
     getDocuments().then((d) => {
       setDocs(d);
       if (d.length) setDocId(d[0].id);
     });
+    getPipelineConfig()
+      .then((cfg) => {
+        if (cfg.llm_providers) setLlmProviders(cfg.llm_providers);
+        if (cfg.embedding_models) setEmbeddingModels(cfg.embedding_models);
+        if (cfg.chunking_strategies) setChunkers(cfg.chunking_strategies);
+      })
+      .catch(() => {}); // fall back to defaults
   }, []);
 
-  useEffect(() => { setModel(MODELS[provider][0]); }, [provider]);
+  const PROVIDERS = Object.keys(llmProviders);
+  const MODELS = llmProviders;
+
+  useEffect(() => {
+    if (MODELS[provider]) setModel(MODELS[provider][0]);
+  }, [provider, llmProviders]);
 
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -97,6 +119,7 @@ export default function Pipeline() {
       config: {
         llm: { provider, model },
         chunking: { strategy: chunker, chunk_size: chunkSize, overlap },
+        embedding: { model: embeddingModel },
         entity_resolution: { use_llm: useLlmRes },
       },
     };
@@ -190,7 +213,7 @@ export default function Pipeline() {
           <div className="form-group">
             <label>Model</label>
             <select value={model} onChange={(e) => setModel(e.target.value)}>
-              {MODELS[provider].map((m) => (
+              {(MODELS[provider] || []).map((m) => (
                 <option key={m}>{m}</option>
               ))}
             </select>
@@ -199,10 +222,32 @@ export default function Pipeline() {
           <div className="form-group">
             <label>Chunking Strategy</label>
             <select value={chunker} onChange={(e) => setChunker(e.target.value)}>
-              {CHUNKERS.map((c) => (
+              {chunkers.map((c) => (
                 <option key={c}>{c}</option>
               ))}
             </select>
+          </div>
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label>Embedding Model (Locked to Workspace)</label>
+            <div style={{
+              padding: "10px 12px",
+              backgroundColor: "var(--bg-subtle)",
+              borderRadius: "6px",
+              border: "1px solid var(--border)",
+              marginTop: "4px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px"
+            }}>
+              <span style={{ fontSize: "16px" }}>🧬</span>
+              <span className="code-text" style={{ fontSize: "14px", fontWeight: 500 }}>{embeddingModel}</span>
+            </div>
+            <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 8 }}>
+              This chat base was created using the <strong>{embeddingModel}</strong> model. It cannot be changed to ensure vector space integrity.
+            </div>
           </div>
         </div>
 
@@ -251,6 +296,7 @@ export default function Pipeline() {
           <div className="stat-row" style={{ marginBottom: 16 }}>
             <div className="stat-pill">📄 <span>{selectedDoc.name}</span></div>
             <div className="stat-pill">🤖 <span>{provider} / {model}</span></div>
+            <div className="stat-pill">🧬 <span>{embeddingModel}</span></div>
             <div className="stat-pill">✂️ <span>{chunker} · {chunkSize}t · {overlap}o</span></div>
           </div>
         )}

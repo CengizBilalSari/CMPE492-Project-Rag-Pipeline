@@ -24,6 +24,21 @@ class GraphRAGPipeline:
     def __init__(self, config: PipelineConfig, chat_id: str = "", document_id: str = "") -> None:
         self.chat_id = chat_id
         self.document_id = document_id
+        self.config = config
+
+        # Override embedding model with the chat's selected model to ensure consistency
+        if self.chat_id:
+            from core.db import connection
+            try:
+                with connection() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute("SELECT embedding_model FROM chats WHERE chat_id = %s", (self.chat_id,))
+                        row = cur.fetchone()
+                        if row and row.get("embedding_model"):
+                            self.config.embedding.model = row["embedding_model"]
+                            logger.info("Override config embedding model to match chat: %s", self.config.embedding.model)
+            except Exception as e:
+                logger.error("Failed to fetch embedding model for chat %s: %s", self.chat_id, e)
         self._run_id: str | None = None
 
         try:
@@ -31,7 +46,7 @@ class GraphRAGPipeline:
         except Exception as e:
             logger.warning("Pipeline history disabled: %s", e)
             self._history = None
-        self.config = config
+
         self.llm: LLMInterface = get_llm(
             provider=config.llm.provider.value,
             model=config.llm.model,

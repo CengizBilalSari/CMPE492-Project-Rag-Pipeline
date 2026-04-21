@@ -169,12 +169,29 @@ def start_evaluation_job(
         # ── Step 2: Evaluate each search type ─────────────
         _update_job(job_id, status="evaluating")
 
+        # Fetch chat_id and embedding_model for the job
+        with connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT c.chat_id, c.embedding_model 
+                    FROM evaluation_jobs j 
+                    JOIN chats c ON j.chat_id = c.chat_id 
+                    WHERE j.id = %s
+                    """,
+                    (job_id,)
+                )
+                job_row = cur.fetchone()
+                embedding_model = job_row["embedding_model"] if job_row and "embedding_model" in job_row else "all-MiniLM-L6-v2"
+                logger.info("Using embedding model '%s' from chat base.", embedding_model)
+
         search_client = GraphRAGSearchClient(
             neo4j_uri=os.getenv("NEO4J_URI", "bolt://localhost:7687"),
             neo4j_user=os.getenv("NEO4J_USER", "neo4j"),
             neo4j_password=os.getenv("NEO4J_PASSWORD", "password"),
             llm_provider=llm_provider,
             llm_model=llm_model,
+            embedding_model=embedding_model,
         )
         evaluator = RAGEvaluator(
             search_client=search_client,

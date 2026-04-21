@@ -28,6 +28,28 @@ OPENAI_MODELS = [
 
 LMSTUDIO_BASE_URL = os.getenv("LMSTUDIO_BASE_URL", "http://localhost:1234/v1")
 
+# ── Available Embedding Models (sentence-transformers compatible) ─────────
+# Each entry: (model_name, dimensions, description)
+EMBEDDING_MODELS = [
+    "all-MiniLM-L6-v2",              # 384 dims — fast, lightweight, classic default
+    "all-MiniLM-L12-v2",             # 384 dims — slightly better quality than L6
+    "all-mpnet-base-v2",             # 768 dims — best quality classic sentence-transformers
+    "BAAI/bge-small-en-v1.5",        # 384 dims — strong retrieval performance, small
+    "BAAI/bge-base-en-v1.5",         # 768 dims — strong retrieval performance, medium
+    "BAAI/bge-large-en-v1.5",        # 1024 dims — strongest BGE, large
+    "nomic-ai/nomic-embed-text-v1.5", # 768 dims — open-source, strong MTEB scores
+]
+
+EMBEDDING_MODEL_INFO = {
+    "all-MiniLM-L6-v2":              {"dimensions": 384,  "description": "Fast, lightweight, classic default"},
+    "all-MiniLM-L12-v2":             {"dimensions": 384,  "description": "Slightly better quality than L6"},
+    "all-mpnet-base-v2":             {"dimensions": 768,  "description": "Best quality classic model"},
+    "BAAI/bge-small-en-v1.5":        {"dimensions": 384,  "description": "Strong retrieval, small footprint"},
+    "BAAI/bge-base-en-v1.5":         {"dimensions": 768,  "description": "Strong retrieval, balanced"},
+    "BAAI/bge-large-en-v1.5":        {"dimensions": 1024, "description": "Strongest BGE, large"},
+    "nomic-ai/nomic-embed-text-v1.5": {"dimensions": 768,  "description": ""},
+}
+
 
 class LLMConfig(BaseModel):
     provider: LLMProvider = LLMProvider.OPENAI
@@ -58,6 +80,15 @@ class ChunkingConfig(BaseModel):
 
 class EmbeddingConfig(BaseModel):
     model: str = "all-MiniLM-L6-v2"
+
+    @model_validator(mode="after")
+    def validate_embedding_model(self) -> "EmbeddingConfig":
+        if self.model not in EMBEDDING_MODELS:
+            raise ValueError(
+                f"Embedding model '{self.model}' is not available. "
+                f"Choose from: {EMBEDDING_MODELS}"
+            )
+        return self
 
 
 class Neo4jConfig(BaseModel):

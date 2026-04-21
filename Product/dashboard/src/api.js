@@ -20,11 +20,11 @@ export async function listChats() {
 }
 
 /** Step 2b: create a new chat base. */
-export async function createChat(name) {
+export async function createChat(name, embeddingModel = "all-MiniLM-L6-v2") {
   const res = await fetch(`${PIPELINER_BASE}/api/auth/chats`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, embedding_model: embeddingModel }),
   });
   if (!res.ok) {
     let detail = res.statusText;
@@ -40,6 +40,9 @@ export async function createChat(name) {
 export function selectChat(chat) {
   localStorage.setItem(CHAT_ID_KEY, chat.chat_id);
   localStorage.setItem(CHAT_NAME_KEY, chat.name);
+  if (chat.embedding_model) {
+    localStorage.setItem("graphrag_embedding_model", chat.embedding_model);
+  }
 }
 
 /** Get the active chat. */
@@ -55,6 +58,7 @@ export function getChatName() {
 export function clearChat() {
   localStorage.removeItem(CHAT_ID_KEY);
   localStorage.removeItem(CHAT_NAME_KEY);
+  localStorage.removeItem("graphrag_embedding_model");
 }
 
 function headers(extra = {}) {
@@ -105,6 +109,13 @@ export function connectPipeline(payload, onMessage, onClose) {
   ws.onerror = (err) => onMessage({ type: "error", message: "WebSocket error" });
 
   return ws;
+}
+
+/** Fetch available pipeline configuration options (embedding models, LLM models, etc.) */
+export async function getPipelineConfig() {
+  const res = await fetch(`${PIPELINER_BASE}/api/pipeline/config`);
+  if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
+  return res.json();
 }
 
 // ── Evaluation ──────────────────────────────────────
