@@ -25,8 +25,21 @@ class LLMConfig(BaseModel):
     max_tokens: int = 4096
 
 
+# ── Available Embedding Models (sentence-transformers compatible) ─────────
+EMBEDDING_MODELS = [
+    "all-MiniLM-L6-v2",              # 384 dims — fast, lightweight, classic default
+    "all-MiniLM-L12-v2",             # 384 dims — slightly better quality than L6
+    "all-mpnet-base-v2",             # 768 dims — best quality classic sentence-transformers
+    "BAAI/bge-small-en-v1.5",        # 384 dims — strong retrieval performance, small
+    "BAAI/bge-base-en-v1.5",         # 768 dims — strong retrieval performance, medium
+    "BAAI/bge-large-en-v1.5",        # 1024 dims — strongest BGE, large
+    "nomic-ai/nomic-embed-text-v1.5", # 768 dims — open-source, strong MTEB scores
+]
+
+
 class EmbeddingConfig(BaseModel):
     model: str = "all-MiniLM-L6-v2"
+
 
 
 class Neo4jConfig(BaseModel):

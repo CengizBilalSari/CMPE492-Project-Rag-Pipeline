@@ -9,9 +9,10 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- ── Chats (local workspaces) ──────────────────────────────────
 -- A single local user can create many named chat bases.
 CREATE TABLE IF NOT EXISTS chats (
-  chat_id    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name       TEXT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  chat_id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name            TEXT NOT NULL,
+  embedding_model TEXT NOT NULL DEFAULT 'all-MiniLM-L6-v2',
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (name)
 );
 

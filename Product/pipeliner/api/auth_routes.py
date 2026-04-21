@@ -15,11 +15,13 @@ logger = logging.getLogger(__name__)
 
 class CreateChatRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
+    embedding_model: str = Field("all-MiniLM-L6-v2")
 
 
 class ChatResponse(BaseModel):
     chat_id: str
     name: str
+    embedding_model: str
 
 
 # ── Endpoints ────────────────────────────────────────────────────────────────
@@ -32,7 +34,7 @@ async def list_chats() -> list[ChatResponse]:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT chat_id, name
+                SELECT chat_id, name, embedding_model
                 FROM chats
                 ORDER BY created_at DESC
                 """
@@ -40,7 +42,8 @@ async def list_chats() -> list[ChatResponse]:
             for row in cur.fetchall():
                 chats.append(ChatResponse(
                     chat_id=str(row["chat_id"]),
-                    name=row["name"]
+                    name=row["name"],
+                    embedding_model=row.get("embedding_model", "all-MiniLM-L6-v2")
                 ))
     return chats
 
@@ -62,11 +65,11 @@ async def create_chat(payload: CreateChatRequest) -> ChatResponse:
 
             cur.execute(
                 """
-                INSERT INTO chats (name)
-                VALUES (%s)
+                INSERT INTO chats (name, embedding_model)
+                VALUES (%s, %s)
                 RETURNING chat_id
                 """,
-                (name,)
+                (name, payload.embedding_model)
             )
             chat_id = str(cur.fetchone()["chat_id"])
         conn.commit()
@@ -74,5 +77,5 @@ async def create_chat(payload: CreateChatRequest) -> ChatResponse:
     if not chat_id:
         raise HTTPException(status_code=500, detail="Failed to create chat.")
 
-    logger.info("Created chat: name=%s chat_id=%s", name, chat_id)
-    return ChatResponse(chat_id=str(chat_id), name=name)
+    logger.info("Created chat: name=%s embedding=%s chat_id=%s", name, payload.embedding_model, chat_id)
+    return ChatResponse(chat_id=str(chat_id), name=name, embedding_model=payload.embedding_model)

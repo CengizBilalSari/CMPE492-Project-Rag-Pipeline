@@ -7,13 +7,42 @@ import traceback
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from core.config import PipelineConfig
+from core.config import (
+    PipelineConfig,
+    EMBEDDING_MODELS,
+    EMBEDDING_MODEL_INFO,
+    OPENAI_MODELS,
+    LMSTUDIO_MODELS,
+)
 from core.document_store import DocumentStore
 from services.graph_pipeline import GraphRAGPipeline
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+@router.get("/api/pipeline/config")
+async def get_pipeline_config():
+    """Return available models, embedding options, and chunking strategies."""
+    return {
+        "llm_providers": {
+            "openai": OPENAI_MODELS,
+            "lmstudio": LMSTUDIO_MODELS,
+        },
+        "embedding_models": [
+            {
+                "name": name,
+                "dimensions": EMBEDDING_MODEL_INFO[name]["dimensions"],
+                "description": EMBEDDING_MODEL_INFO[name]["description"],
+            }
+            for name in EMBEDDING_MODELS
+        ],
+        "chunking_strategies": [
+            "sentence", "token", "character",
+            "recursive", "semantic", "propositional",
+        ],
+    }
 
 
 @router.websocket("/ws/pipeline/run")
