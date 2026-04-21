@@ -20,9 +20,11 @@ class QuestionGenerator:
         self.model = model
         
         if self.provider == "lmstudio":
-            self.base_url = os.getenv("LMSTUDIO_BASE_URL")
+            self.base_url = os.getenv("LMSTUDIO_BASE_URL", "http://localhost:1234/v1")
             if not self.base_url:
                 raise ValueError("Missing LMSTUDIO_BASE_URL in .env file for lmstudio provider")
+        elif self.provider == "ollama":
+            self.base_url = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434/v1")
         else:
             api_key = os.getenv("OPENAI_API_KEY")
             if not api_key:
@@ -106,14 +108,22 @@ class QuestionGenerator:
 
         summaries: list[str] = []
         for idx, chunk in enumerate(map_chunks):
-            sys_prompt = "You are an expert summarizer. Summarize the following document chunk, highlighting main themes, relationships, and important narratives. Return only the summary text."
+            sys_prompt = """You are an expert summarizer. Summarize the following document chunk, highlighting main themes, relationships, and important narratives.
+
+            Return ONLY a valid JSON object in the following format:
+            {
+            "summary": "your summary here"
+            }"""
             try:
-                summary = self._call_llm(
+                raw_response = self._call_llm(
                     messages=[
                         {"role": "system", "content": sys_prompt},
                         {"role": "user", "content": chunk},
                     ],
+                    json_mode=True,
                 )
+                data = self._parse_json(raw_response)
+                summary = data.get("summary", "")
                 if summary:
                     summaries.append(summary)
                     logger.debug("MAP chunk %d/%d summarized (%d chars)", idx + 1, len(map_chunks), len(summary))
@@ -128,38 +138,27 @@ class QuestionGenerator:
         )
 
         # GENERATE PHASE: produce global questions from the super-summary
-        global_chunks = [combined_summary]
-
-        if len(global_chunks) > num_global:
-            step = max(1, len(global_chunks) // num_global)
-            global_chunks = global_chunks[::step][:num_global]
-
-        q_per_global = max(1, num_global // len(global_chunks)) if global_chunks else 0
-        global_rem = num_global % len(global_chunks) if global_chunks else 0
-
-        for i, chunk in enumerate(global_chunks):
-            q_count = q_per_global + (1 if i < global_rem else 0)
-            if q_count <= 0:
-                continue
-
+        # Since combined_summary is just one text block, we ask the LLM
+        # to generate all num_global questions in a single request.
+        if num_global > 0:
             prompt = f"""You are an expert evaluation engineer.
 
-=== DOCUMENT SUMMARY ===
-{chunk}
-=== END DOCUMENT SUMMARY ===
+        === DOCUMENT SUMMARY ===
+        {combined_summary}
+        === END DOCUMENT SUMMARY ===
 
-Generate exactly {q_count} GLOBAL question-answer pairs from this summary.
+        Generate exactly {num_global} GLOBAL question-answer pairs from this summary.
 
-CRITICAL RULES FOR GLOBAL QUESTIONS:
-1. Global questions require high-level synthesis. Ask about overarching themes, continuous narratives, or broad aggregated trends across the document.
-2. The questions should NOT be answerable by locating a single specific sentence. They must require synthesizing multiple sections.
-3. Every question MUST be answerable ONLY from the summary above.
-4. Every answer MUST be derived strictly from information in the summary.
+        CRITICAL RULES FOR GLOBAL QUESTIONS:
+        1. Global questions require high-level synthesis. Ask about overarching themes, continuous narratives, or broad aggregated trends across the document.
+        2. The questions should NOT be answerable by locating a single specific sentence. They must require synthesizing multiple sections.
+        3. Every question MUST be answerable ONLY from the summary above.
+        4. Every answer MUST be derived strictly from information in the summary.
 
-Return ONLY a valid JSON object:
-{{
-  "qa_pairs": [ {{"question": "...", "ground_truth_answer": "..."}} ]
-}}"""
+        Return ONLY a valid JSON object:
+        {{
+        "qa_pairs": [ {{"question": "...", "ground_truth_answer": "..."}} ]
+        }}"""
 
             try:
                 raw_response = self._call_llm(
@@ -239,8 +238,8 @@ Return ONLY a valid JSON object:
     # ── Private helpers ────────────────────────────────────────
 
     def _call_llm(self, messages: list[dict], json_mode: bool = False) -> str:
-        """Unified LLM call supporting both OpenAI and LMStudio providers."""
-        if self.provider == "lmstudio":
+        """Unified LLM call supporting OpenAI, LMStudio, and Ollama providers."""
+        if self.provider in ["lmstudio", "ollama"]:
             import httpx
             payload = {
                 "model": self.model,
@@ -248,7 +247,8 @@ Return ONLY a valid JSON object:
                 "temperature": 0.0,
                 "max_tokens": 2048,
             }
-            res = httpx.post(self.base_url, json=payload, timeout=120.0)
+            endpoint = self.base_url if self.base_url.endswith("/chat/completions") else f"{self.base_url}/chat/completions"
+            res = httpx.post(endpoint, json=payload, timeout=120.0)
             res.raise_for_status()
             return res.json()["choices"][0]["message"]["content"] or ""
         else:

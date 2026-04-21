@@ -8,7 +8,7 @@ import time
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from core.config import LLMProvider, LMSTUDIO_BASE_URL
+from core.config import LLMProvider, LMSTUDIO_BASE_URL, OLLAMA_BASE_URL
 
 logger = logging.getLogger(__name__)
 
@@ -192,11 +192,74 @@ class LMStudioLLM(LLMInterface):
         return content
 
 
+class OllamaLLM(LLMInterface):
+    """Ollama hosted model via OpenAI-compatible endpoint."""
+
+    def __init__(
+        self,
+        model: str = "llama3:latest",
+        temperature: float = 0.0,
+        max_tokens: int = 4096,
+        base_url: str = OLLAMA_BASE_URL,
+    ) -> None:
+        super().__init__(model=model, temperature=temperature, max_tokens=max_tokens)
+        self.base_url = base_url.rstrip("/")
+
+    async def ainvoke(self, prompt: str, system_prompt: Optional[str] = None) -> str:
+        import httpx
+
+        messages: list[dict] = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+
+        temp = 0.7 if self.temperature == 0.0 else self.temperature
+
+        payload = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": temp,
+            "max_tokens": self.max_tokens if self.max_tokens > 0 else 2048,
+        }
+
+        start = time.time()
+
+        async def _call():
+            endpoint = self.base_url if self.base_url.endswith("/chat/completions") else f"{self.base_url}/chat/completions"
+            async with httpx.AsyncClient() as client:
+                resp = await client.post(
+                    endpoint,
+                    json=payload,
+                    timeout=180.0
+                )
+                if resp.status_code >= 400:
+                    logger.error("Ollama API Error %d: %s", resp.status_code, resp.text)
+                
+                resp.raise_for_status()
+                return resp.json()
+
+        data = await self._execute_with_retry("Ollama", _call)
+        duration = time.time() - start
+
+        content = data["choices"][0]["message"]["content"] or ""
+        import re
+        content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+        
+        usage = data.get("usage", {})
+        prompt_tokens = usage.get("prompt_tokens", 0)
+        completion_tokens = usage.get("completion_tokens", 0)
+        self._update_and_log_usage(prompt_tokens, completion_tokens, duration)
+
+        return content
+
+
 def get_llm(provider: str, **kwargs) -> LLMInterface:
     p = LLMProvider(provider.lower())
     if p == LLMProvider.OPENAI:
         return OpenAILLM(**kwargs)
     elif p == LLMProvider.LMSTUDIO:
         return LMStudioLLM(**kwargs)
+    elif p == LLMProvider.OLLAMA:
+        return OllamaLLM(**kwargs)
     else:
-        raise ValueError(f"Unsupported LLM provider '{provider}'. Choose from: openai, lmstudio")
+        raise ValueError(f"Unsupported LLM provider '{provider}'. Choose from: openai, lmstudio, ollama")

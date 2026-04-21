@@ -16,7 +16,7 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 
 const SEARCH_TYPES = ["global", "local", "ppr", "rag", "no-retriever"];
 
-const PROVIDERS = ["openai", "lmstudio"];
+const PROVIDERS = ["openai", "lmstudio", "ollama"];
 const MODELS = {
   openai: ["gpt-4o", "gpt-4o-mini"],
   lmstudio: [
@@ -24,6 +24,13 @@ const MODELS = {
     "llama-3-22b-instruct-v0.1",
     "google/gemma-4-31b",
   ],
+  ollama: [
+    "llama3:latest",
+    "mistral:latest",
+    "phi3:latest",
+    "gemma:latest",
+    "qwen2:latest"
+  ]
 };
 
 const CHART_COLORS = [
@@ -120,8 +127,8 @@ export default function Evaluation() {
   const [file, setFile] = useState(null);
   const [docs, setDocs] = useState([]);
   const [docId, setDocId] = useState("");
-  const [provider, setProvider] = useState("lmstudio");
-  const [model, setModel] = useState(MODELS.lmstudio[0]);
+  const [provider, setProvider] = useState("openai");
+  const [model, setModel] = useState("gpt-4o-mini");
   const [jobId, setJobId] = useState(null);
   const [status, setStatus] = useState(null);
   const [progressMsg, setProgressMsg] = useState("");
