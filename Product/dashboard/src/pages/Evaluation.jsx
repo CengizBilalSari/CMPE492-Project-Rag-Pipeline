@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { startEvaluation, getEvalStatus, getEvalResults, getDocuments, generateQuestions, getEvaluationJobs, getEvaluationJobDetails } from "../api";
+import { startEvaluation, getEvalStatus, getEvalResults, getDocuments, connectEvalGenerator, getEvaluationJobs, getEvaluationJobDetails } from "../api";
 import { exportEvalResults } from "../utils/exportCsv";
 import {
   Chart as ChartJS,
@@ -18,7 +18,7 @@ const SEARCH_TYPES = ["global", "local", "ppr", "rag", "no-retriever"];
 
 const PROVIDERS = ["openai", "lmstudio", "ollama"];
 const MODELS = {
-  openai: ["gpt-4o", "gpt-4o-mini"],
+  openai: ["gpt-4o-mini", "gpt-4o"],
   lmstudio: [
     "deepseek/deepseek-r1-0528-qwen3-8b",
     "llama-3-22b-instruct-v0.1",
