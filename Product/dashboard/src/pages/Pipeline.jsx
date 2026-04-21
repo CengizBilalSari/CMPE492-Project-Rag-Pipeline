@@ -2,14 +2,21 @@ import { useState, useEffect, useRef } from "react";
 import { connectPipeline, getDocuments, getPipelineConfig } from "../api";
 
 // Fallbacks used until the API response arrives
-const DEFAULT_PROVIDERS = ["openai", "lmstudio"];
+const DEFAULT_PROVIDERS = ["openai", "lmstudio", "ollama"];
 const DEFAULT_MODELS = {
-  openai: ["gpt-4o", "gpt-4o-mini"],
+  openai: ["gpt-4o-mini", "gpt-4o"],
   lmstudio: [
     "deepseek/deepseek-r1-0528-qwen3-8b",
     "llama-3-22b-instruct-v0.1",
     "google/gemma-4-31b",
   ],
+  ollama: [
+    "llama3:latest",
+    "mistral:latest",
+    "phi3:latest",
+    "gemma:latest",
+    "qwen2:latest"
+  ]
 };
 const DEFAULT_CHUNKERS = [
   "sentence", "token", "character",
@@ -53,8 +60,8 @@ function now() {
 export default function Pipeline() {
   const [docs, setDocs] = useState([]);
   const [docId, setDocId] = useState("");
-  const [provider, setProvider] = useState("lmstudio");
-  const [model, setModel] = useState(DEFAULT_MODELS.lmstudio[0]);
+  const [provider, setProvider] = useState("openai");
+  const [model, setModel] = useState(DEFAULT_MODELS.openai[0]);
   const [chunker, setChunker] = useState("recursive");
   const [chunkSize, setChunkSize] = useState(512);
   const [overlap, setOverlap] = useState(50);
