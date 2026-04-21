@@ -1,18 +1,37 @@
 import { useState, useEffect } from "react";
-import { listChats, createChat, selectChat } from "../api";
+import { listChats, createChat, selectChat, getPipelineConfig } from "../api";
 
 export default function Login({ onLogin }) {
   const [chats, setChats] = useState([]);
+  const [selectedChatId, setSelectedChatId] = useState("");
   const [newChatName, setNewChatName] = useState("");
+  const [embeddingModel, setEmbeddingModel] = useState("all-MiniLM-L6-v2");
+  const [availableEmbeddingModels, setAvailableEmbeddingModels] = useState([
+    { name: "all-MiniLM-L6-v2", dimensions: 384, description: "Fast, lightweight, classic default" },
+  ]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     setLoading(true);
-    listChats()
-      .then(setChats)
-      .catch((err) => setError(err.message || "Failed to load chats."))
-      .finally(() => setLoading(false));
+    
+    // Fetch both chats and config in parallel
+    Promise.all([
+      listChats().catch(err => {
+        setError(err.message || "Failed to load chats.");
+        return [];
+      }),
+      getPipelineConfig().catch(() => ({}))
+    ]).then(([chatsData, configData]) => {
+      setChats(chatsData);
+      if (chatsData.length > 0) {
+        setSelectedChatId(chatsData[0].chat_id);
+      }
+      if (configData.embedding_models) {
+        setAvailableEmbeddingModels(configData.embedding_models);
+      }
+      setLoading(false);
+    });
   }, []);
 
   function handleSelectChat(chat) {
@@ -27,7 +46,7 @@ export default function Login({ onLogin }) {
     setLoading(true);
     setError("");
     try {
-      await createChat(name);
+      await createChat(name, embeddingModel);
       onLogin?.();
     } catch (err) {
       setError(err.message || "Failed to create chat base.");
@@ -48,22 +67,33 @@ export default function Login({ onLogin }) {
 
         {/* Existing chats list */}
         {chats.length > 0 && (
-          <div style={{ marginBottom: 20 }}>
-            <p style={{ marginBottom: 8, opacity: 0.7, fontSize: 13 }}>
-              AVAILABLE CHAT BASES
-            </p>
-            <div className="chat-list">
-              {chats.map((chat) => (
-                <button
-                  key={chat.chat_id}
-                  className="chat-list-item"
-                  onClick={() => handleSelectChat(chat)}
+          <div style={{ marginBottom: 32 }}>
+            <div className="form-group">
+              <label>Available Chat Bases</label>
+              <div className="flex gap-8">
+                <select 
+                  value={selectedChatId} 
+                  onChange={(e) => setSelectedChatId(e.target.value)}
+                  style={{ flex: 1 }}
                 >
-                  <span className="chat-list-icon">💬</span>
-                  <span className="chat-list-name">{chat.name}</span>
-                  <span className="chat-list-arrow">→</span>
+                  {chats.map((chat) => (
+                    <option key={chat.chat_id} value={chat.chat_id}>
+                      {chat.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  disabled={!selectedChatId}
+                  onClick={() => {
+                    const c = chats.find(x => x.chat_id === selectedChatId);
+                    if (c) handleSelectChat(c);
+                  }}
+                >
+                  Open →
                 </button>
-              ))}
+              </div>
             </div>
           </div>
         )}
@@ -86,6 +116,24 @@ export default function Login({ onLogin }) {
               disabled={loading}
               maxLength={200}
             />
+          </div>
+
+          <div className="form-group" style={{ marginTop: 16, marginBottom: 24 }}>
+            <label>Embedding Model</label>
+            <select 
+              value={embeddingModel} 
+              onChange={(e) => setEmbeddingModel(e.target.value)}
+              disabled={loading}
+            >
+              {availableEmbeddingModels.map((em) => (
+                <option key={em.name} value={em.name}>
+                  {em.name} ({em.dimensions}d — {em.description})
+                </option>
+              ))}
+            </select>
+            <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 8, lineHeight: 1.4 }}>
+              <strong>Important:</strong> The embedding model cannot be changed once the chat base is created. All documents in this workspace will use this vector space.
+            </div>
           </div>
 
           {error && <div className="error-msg" style={{ marginBottom: 16 }}>⚠️ {error}</div>}
