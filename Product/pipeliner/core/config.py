@@ -13,6 +13,7 @@ load_dotenv()
 class LLMProvider(str, Enum):
     OPENAI = "openai"
     LMSTUDIO = "lmstudio"
+    OLLAMA = "ollama"
 
 
 LMSTUDIO_MODELS = [
@@ -22,11 +23,20 @@ LMSTUDIO_MODELS = [
 ]
 
 OPENAI_MODELS = [
-    "gpt-4o",
     "gpt-4o-mini",
+    "gpt-4o",
+]
+
+OLLAMA_MODELS = [
+    "llama3:latest",
+    "mistral:latest",
+    "phi3:latest",
+    "gemma:latest",
+    "qwen2:latest"
 ]
 
 LMSTUDIO_BASE_URL = os.getenv("LMSTUDIO_BASE_URL", "http://localhost:1234/v1")
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434/v1")
 
 # ── Available Embedding Models (sentence-transformers compatible) ─────────
 # Each entry: (model_name, dimensions, description)
@@ -59,16 +69,8 @@ class LLMConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_model_for_provider(self) -> "LLMConfig":
-        if self.provider == LLMProvider.OPENAI and self.model not in OPENAI_MODELS:
-            raise ValueError(
-                f"Model '{self.model}' is not available for openai. "
-                f"Choose from: {OPENAI_MODELS}"
-            )
-        if self.provider == LLMProvider.LMSTUDIO and self.model not in LMSTUDIO_MODELS:
-            raise ValueError(
-                f"Model '{self.model}' is not available for lmstudio. "
-                f"Choose from: {LMSTUDIO_MODELS}"
-            )
+        # We no longer strictly validate models against hardcoded lists
+        # because Ollama and LMStudio models are fetched dynamically.
         return self
 
 

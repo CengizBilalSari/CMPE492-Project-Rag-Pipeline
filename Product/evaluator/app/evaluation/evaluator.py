@@ -62,9 +62,11 @@ class LLMJudge:
         self.model = model
         
         if self.provider == "lmstudio":
-            self.base_url = os.getenv("LMSTUDIO_BASE_URL")
+            self.base_url = os.getenv("LMSTUDIO_BASE_URL", "http://localhost:1234/v1")
             if not self.base_url:
                 raise ValueError("Missing LMSTUDIO_BASE_URL in .env file for lmstudio provider")
+        elif self.provider == "ollama":
+            self.base_url = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434/v1")
         else:
             api_key = os.getenv("OPENAI_API_KEY")
             if not api_key:
@@ -86,7 +88,7 @@ class LLMJudge:
             f"**Retrieved Contexts:**\n{contexts_str}"
         )
 
-        if self.provider == "lmstudio":
+        if self.provider in ["lmstudio", "ollama"]:
             import httpx
             payload = {
                 "model": self.model,
@@ -97,7 +99,8 @@ class LLMJudge:
                 "temperature": 0.0,
                 "max_tokens": 2048
             }
-            res = httpx.post(self.base_url, json=payload, timeout=120.0)
+            endpoint = self.base_url if self.base_url.endswith("/chat/completions") else f"{self.base_url}/chat/completions"
+            res = httpx.post(endpoint, json=payload, timeout=120.0)
             res.raise_for_status()
             raw = res.json()["choices"][0]["message"]["content"] or ""
         else:

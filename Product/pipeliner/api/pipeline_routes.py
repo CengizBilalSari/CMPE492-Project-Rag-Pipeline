@@ -13,6 +13,9 @@ from core.config import (
     EMBEDDING_MODEL_INFO,
     OPENAI_MODELS,
     LMSTUDIO_MODELS,
+    OLLAMA_MODELS,
+    OLLAMA_BASE_URL,
+    LMSTUDIO_BASE_URL,
 )
 from core.document_store import DocumentStore
 from services.graph_pipeline import GraphRAGPipeline
@@ -25,10 +28,41 @@ router = APIRouter()
 @router.get("/api/pipeline/config")
 async def get_pipeline_config():
     """Return available models, embedding options, and chunking strategies."""
+    import httpx
+    
+    ollama_models = list(OLLAMA_MODELS)
+    lmstudio_models = list(LMSTUDIO_MODELS)
+    
+    # Try fetching dynamically available models
+    async with httpx.AsyncClient(timeout=2.0) as client:
+        try:
+            # OLLAMA_BASE_URL usually ends in /v1, strip it to reach /api/tags
+            base_url = OLLAMA_BASE_URL.split("/v1")[0].rstrip("/")
+            resp = await client.get(f"{base_url}/api/tags")
+            if resp.status_code == 200:
+                data = resp.json()
+                fetched_models = data.get("models") or []
+                fetched = [m.get("name") for m in fetched_models if m.get("name")]
+                if fetched:
+                    ollama_models = fetched
+        except Exception as e:
+            logger.warning(f"Could not fetch Ollama models dynamically: {e}")
+
+        try:
+            resp = await client.get(f"{LMSTUDIO_BASE_URL.rstrip('/')}/models")
+            if resp.status_code == 200:
+                data = resp.json()
+                fetched = [m["id"] for m in data.get("data", [])]
+                if fetched:
+                    lmstudio_models = fetched
+        except Exception as e:
+            logger.warning(f"Could not fetch LMStudio models dynamically: {e}")
+
     return {
         "llm_providers": {
             "openai": OPENAI_MODELS,
-            "lmstudio": LMSTUDIO_MODELS,
+            "lmstudio": lmstudio_models,
+            "ollama": ollama_models,
         },
         "embedding_models": [
             {
