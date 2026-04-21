@@ -106,14 +106,22 @@ class QuestionGenerator:
 
         summaries: list[str] = []
         for idx, chunk in enumerate(map_chunks):
-            sys_prompt = "You are an expert summarizer. Summarize the following document chunk, highlighting main themes, relationships, and important narratives. Return only the summary text."
+            sys_prompt = """You are an expert summarizer. Summarize the following document chunk, highlighting main themes, relationships, and important narratives.
+
+            Return ONLY a valid JSON object in the following format:
+            {
+            "summary": "your summary here"
+            }"""
             try:
-                summary = self._call_llm(
+                raw_response = self._call_llm(
                     messages=[
                         {"role": "system", "content": sys_prompt},
                         {"role": "user", "content": chunk},
                     ],
+                    json_mode=True,
                 )
+                data = self._parse_json(raw_response)
+                summary = data.get("summary", "")
                 if summary:
                     summaries.append(summary)
                     logger.debug("MAP chunk %d/%d summarized (%d chars)", idx + 1, len(map_chunks), len(summary))
@@ -128,38 +136,27 @@ class QuestionGenerator:
         )
 
         # GENERATE PHASE: produce global questions from the super-summary
-        global_chunks = [combined_summary]
-
-        if len(global_chunks) > num_global:
-            step = max(1, len(global_chunks) // num_global)
-            global_chunks = global_chunks[::step][:num_global]
-
-        q_per_global = max(1, num_global // len(global_chunks)) if global_chunks else 0
-        global_rem = num_global % len(global_chunks) if global_chunks else 0
-
-        for i, chunk in enumerate(global_chunks):
-            q_count = q_per_global + (1 if i < global_rem else 0)
-            if q_count <= 0:
-                continue
-
+        # Since combined_summary is just one text block, we ask the LLM
+        # to generate all num_global questions in a single request.
+        if num_global > 0:
             prompt = f"""You are an expert evaluation engineer.
 
-=== DOCUMENT SUMMARY ===
-{chunk}
-=== END DOCUMENT SUMMARY ===
+        === DOCUMENT SUMMARY ===
+        {combined_summary}
+        === END DOCUMENT SUMMARY ===
 
-Generate exactly {q_count} GLOBAL question-answer pairs from this summary.
+        Generate exactly {num_global} GLOBAL question-answer pairs from this summary.
 
-CRITICAL RULES FOR GLOBAL QUESTIONS:
-1. Global questions require high-level synthesis. Ask about overarching themes, continuous narratives, or broad aggregated trends across the document.
-2. The questions should NOT be answerable by locating a single specific sentence. They must require synthesizing multiple sections.
-3. Every question MUST be answerable ONLY from the summary above.
-4. Every answer MUST be derived strictly from information in the summary.
+        CRITICAL RULES FOR GLOBAL QUESTIONS:
+        1. Global questions require high-level synthesis. Ask about overarching themes, continuous narratives, or broad aggregated trends across the document.
+        2. The questions should NOT be answerable by locating a single specific sentence. They must require synthesizing multiple sections.
+        3. Every question MUST be answerable ONLY from the summary above.
+        4. Every answer MUST be derived strictly from information in the summary.
 
-Return ONLY a valid JSON object:
-{{
-  "qa_pairs": [ {{"question": "...", "ground_truth_answer": "..."}} ]
-}}"""
+        Return ONLY a valid JSON object:
+        {{
+        "qa_pairs": [ {{"question": "...", "ground_truth_answer": "..."}} ]
+        }}"""
 
             try:
                 raw_response = self._call_llm(

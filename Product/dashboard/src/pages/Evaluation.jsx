@@ -120,8 +120,8 @@ export default function Evaluation() {
   const [file, setFile] = useState(null);
   const [docs, setDocs] = useState([]);
   const [docId, setDocId] = useState("");
-  const [provider, setProvider] = useState("lmstudio");
-  const [model, setModel] = useState(MODELS.lmstudio[0]);
+  const [provider, setProvider] = useState("openai");
+  const [model, setModel] = useState("gpt-4o-mini");
   const [jobId, setJobId] = useState(null);
   const [status, setStatus] = useState(null);
   const [progressMsg, setProgressMsg] = useState("");

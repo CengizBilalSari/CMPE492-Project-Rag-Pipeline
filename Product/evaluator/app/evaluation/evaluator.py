@@ -145,7 +145,7 @@ class RAGEvaluator:
         self,
         search_client: GraphRAGSearchClient,
         judge_provider: str = "openai",
-        judge_model: str = "gpt-4o",
+        judge_model: str = "gpt-4o-mini",
     ):
         self._search_client = search_client
         self._judge = LLMJudge(provider=judge_provider, model=judge_model)

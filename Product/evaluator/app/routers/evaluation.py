@@ -36,8 +36,8 @@ async def start_evaluation(
     background_tasks: BackgroundTasks,
     search_types: str = Form(...),
     question_source: str = Form(...),
-    llm_provider: str = Form("lmstudio"),
-    llm_model: str = Form("gpt-4o"),
+    llm_provider: str = Form("openai"),
+    llm_model: str = Form("gpt-4o-mini"),
     doc_id: Optional[str] = Form(None),
     qa_pairs: Optional[str] = Form(None),
     x_chat_id: str = Header(..., alias="X-Chat-Id"),
@@ -135,8 +135,8 @@ async def start_evaluation(
 
 @router.post("/generate-questions")
 async def generate_questions(
-    llm_provider: str = Form("lmstudio"),
-    llm_model: str = Form("gpt-4o"),
+    llm_provider: str = Form("openai"),
+    llm_model: str = Form("gpt-4o-mini"),
     doc_id: str = Form(...),
     num_questions: int = Form(10),
     x_chat_id: str = Header(..., alias="X-Chat-Id"),
