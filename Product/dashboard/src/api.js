@@ -120,7 +120,7 @@ export async function getPipelineConfig() {
 
 // ── Evaluation ──────────────────────────────────────
 
-export async function generateQuestions(provider, model, docId, numQuestions) {
+export async function generateQuestions(provider, model, docId, numQuestions, onProgress) {
   const form = new FormData();
   form.append("llm_provider", provider || "openai");
   form.append("llm_model", model || "gpt-4o");
@@ -132,8 +132,44 @@ export async function generateQuestions(provider, model, docId, numQuestions) {
     headers: headers(),
     body: form,
   });
-  if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
-  return res.json();
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || res.statusText);
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let result = null;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop();
+
+    for (const line of lines) {
+      if (line.startsWith("data: ")) {
+        try {
+          const event = JSON.parse(line.slice(6));
+          if (event.type === "progress" && onProgress) {
+            onProgress(event.message);
+          } else if (event.type === "complete") {
+            result = event;
+          } else if (event.type === "error") {
+            throw new Error(event.message);
+          }
+        } catch (e) {
+          if (e.message && !e.message.includes("JSON")) throw e;
+        }
+      }
+    }
+  }
+
+  if (!result) throw new Error("Stream ended without completion");
+  return result;
 }
 
 export async function startEvaluation(searchTypes, questionSource, file, provider, model, docId, qaPairs) {
@@ -163,6 +199,12 @@ export async function getEvalStatus(jobId) {
 
 export async function getEvalResults(jobId) {
   const res = await fetch(`${EVALUATOR_BASE}/evaluate/results/${jobId}`);
+  if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
+  return res.json();
+}
+
+export async function getEvalDetails(jobId) {
+  const res = await fetch(`${EVALUATOR_BASE}/evaluate/details/${jobId}`);
   if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
   return res.json();
 }

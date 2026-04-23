@@ -445,33 +445,50 @@ export default function History() {
                           </div>
 
                           {qa.qa_evaluations && qa.qa_evaluations.length > 0 && (
-                            <div className="table-wrap" style={{ marginTop: 12 }}>
-                              <table style={{ fontSize: 12 }}>
-                                <thead>
-                                  <tr>
-                                    <th>Strategy</th>
-                                    <th>RAG Answer</th>
-                                    <th>Score</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {qa.qa_evaluations.map(e => (
-                                    <tr key={e.id}>
-                                      <td style={{ color: "var(--accent)", whiteSpace: "nowrap" }}>{e.search_type}</td>
-                                      <td>
-                                        <div style={{ maxHeight: 60, overflowY: "auto", paddingRight: 4, whiteSpace: "pre-wrap" }}>
-                                          {e.rag_answer}
-                                        </div>
-                                      </td>
-                                      <td className="td-mono" style={{ whiteSpace: "nowrap" }}>
-                                        A: {e.answer_correctness_score}<br/>
-                                        C: {e.context_relevance_score}<br/>
-                                        {(e.latency_ms / 1000).toFixed(2)}s
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
+                              {qa.qa_evaluations.map(e => (
+                                <div key={e.id} style={{ padding: 10, border: "1px solid var(--border)", borderRadius: 6, background: "var(--bg-card)" }}>
+                                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                                    <span style={{ color: "var(--accent)", fontWeight: 600, fontSize: 12, textTransform: "uppercase" }}>{e.search_type}</span>
+                                    <span className="td-mono" style={{ fontSize: 11 }}>
+                                      <span style={{ color: (e.answer_correctness_score ?? 0) >= 7 ? "#10b981" : (e.answer_correctness_score ?? 0) >= 4 ? "#f59e0b" : "#ef4444" }}>
+                                        A: {e.answer_correctness_score ?? "N/A"}
+                                      </span>
+                                      {" · "}
+                                      <span style={{ color: (e.context_relevance_score ?? 0) >= 7 ? "#10b981" : (e.context_relevance_score ?? 0) >= 4 ? "#f59e0b" : "#ef4444" }}>
+                                        C: {e.context_relevance_score ?? "N/A"}
+                                      </span>
+                                      {" · "}{(e.latency_ms / 1000).toFixed(2)}s
+                                    </span>
+                                  </div>
+                                  {e.answer_correctness_reason && (
+                                    <div style={{ fontSize: 11, color: "var(--text-dim)", lineHeight: 1.5, marginBottom: 4 }}>
+                                      <strong>Accuracy:</strong> {e.answer_correctness_reason}
+                                    </div>
+                                  )}
+                                  {e.context_relevance_reason && (
+                                    <div style={{ fontSize: 11, color: "var(--text-dim)", lineHeight: 1.5, marginBottom: 4 }}>
+                                      <strong>Context:</strong> {e.context_relevance_reason}
+                                    </div>
+                                  )}
+                                  {e.rag_reasoning && (
+                                    <details style={{ fontSize: 11, marginTop: 4 }}>
+                                      <summary style={{ cursor: "pointer", color: "var(--text-muted)" }}>💭 Answer Reasoning</summary>
+                                      <div style={{ marginTop: 4, padding: 6, background: "var(--bg-card-hover)", borderRadius: 4, color: "var(--text-dim)", lineHeight: 1.5, whiteSpace: "pre-wrap", fontStyle: "italic" }}>
+                                        {e.rag_reasoning}
+                                      </div>
+                                    </details>
+                                  )}
+                                  {e.rag_answer && (
+                                    <details style={{ fontSize: 11, marginTop: 4 }}>
+                                      <summary style={{ cursor: "pointer", color: "var(--text-muted)" }}>RAG Answer</summary>
+                                      <div style={{ marginTop: 4, padding: 6, background: "var(--bg-card-hover)", borderRadius: 4, color: "var(--text-dim)", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
+                                        {e.rag_answer}
+                                      </div>
+                                    </details>
+                                  )}
+                                </div>
+                              ))}
                             </div>
                           )}
                         </div>

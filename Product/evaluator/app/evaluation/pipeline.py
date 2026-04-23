@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-from typing import List
+from typing import Callable, List, Optional
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -48,6 +48,7 @@ class QuestionGenerator:
         self,
         text: str,
         num_questions: int = 10,
+        on_progress: Optional[Callable[[str], None]] = None,
     ) -> List[dict]:
         """Generate QA pairs using a dual-strategy pipeline.
 
@@ -84,6 +85,10 @@ class QuestionGenerator:
         │  be able to answer from a single chunk hit.              │
         └──────────────────────────────────────────────────────────┘
         """
+        def _progress(msg: str) -> None:
+            if on_progress:
+                on_progress(msg)
+
         num_global = num_questions // 2
         num_local = num_questions - num_global
 
@@ -105,6 +110,7 @@ class QuestionGenerator:
             "Summarization MAP phase: %d chunks of ~%d chars",
             len(map_chunks), self.SUMMARY_MAP_CHUNK_SIZE,
         )
+        _progress(f"MAP phase: splitting document into {len(map_chunks)} chunks...")
 
         summaries: list[str] = []
         for idx, chunk in enumerate(map_chunks):
@@ -114,6 +120,7 @@ class QuestionGenerator:
             {
             "summary": "your summary here"
             }"""
+            _progress(f"Summarizing chunk {idx + 1}/{len(map_chunks)}...")
             try:
                 raw_response = self._call_llm(
                     messages=[
@@ -138,8 +145,7 @@ class QuestionGenerator:
         )
 
         # GENERATE PHASE: produce global questions from the super-summary
-        # Since combined_summary is just one text block, we ask the LLM
-        # to generate all num_global questions in a single request.
+        _progress("Generating global questions from summary...")
         if num_global > 0:
             prompt = f"""You are an expert evaluation engineer.
 
@@ -197,6 +203,7 @@ class QuestionGenerator:
             q_count = q_per_local + (1 if i < local_rem else 0)
             if q_count <= 0:
                 continue
+            _progress(f"Generating local questions ({i + 1}/{len(local_chunks)})...")
 
             prompt = f"""You are an expert evaluation engineer.
 

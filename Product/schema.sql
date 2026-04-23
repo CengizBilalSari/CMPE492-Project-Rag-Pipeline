@@ -96,6 +96,7 @@ CREATE TABLE IF NOT EXISTS qa_evaluations (
   qa_pair_id                UUID NOT NULL REFERENCES qa_pairs(id) ON DELETE CASCADE,
   search_type               TEXT NOT NULL,
   rag_answer                TEXT,
+  rag_reasoning             TEXT,
   retrieved_contexts        JSONB,
   answer_correctness_score  DOUBLE PRECISION,
   answer_correctness_reason TEXT,

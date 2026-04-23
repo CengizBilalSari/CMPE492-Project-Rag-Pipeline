@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { startEvaluation, getEvalStatus, getEvalResults, getDocuments, connectEvalGenerator, getEvaluationJobs, getEvaluationJobDetails } from "../api";
+import { startEvaluation, getEvalStatus, getEvalResults, getEvalDetails, getDocuments, generateQuestions, getEvaluationJobs, getEvaluationJobDetails } from "../api";
 import { exportEvalResults } from "../utils/exportCsv";
 import {
   Chart as ChartJS,
@@ -140,8 +140,11 @@ export default function Evaluation() {
   const [numQuestions, setNumQuestions] = useState(10);
   const [generatedQaPairs, setGeneratedQaPairs] = useState(null);
   const [generating, setGenerating] = useState(false);
+  const [genLogs, setGenLogs] = useState([]);
   const [isApproved, setIsApproved] = useState(false);
   const [reviewExpanded, setReviewExpanded] = useState(true);
+  const [evalDetails, setEvalDetails] = useState(null);
+  const [detailsExpanded, setDetailsExpanded] = useState(false);
 
   const [allPastJobs, setAllPastJobs] = useState([]);
   const [pastJobId, setPastJobId] = useState("");
@@ -150,10 +153,15 @@ export default function Evaluation() {
   const pollRef = useRef(null);
   const fileRef = useRef();
   const logEndRef = useRef(null);
+  const genLogEndRef = useRef(null);
 
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [logs]);
+
+  useEffect(() => {
+    genLogEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [genLogs]);
 
   useEffect(() => {
     getDocuments().then((d) => {
@@ -220,14 +228,22 @@ export default function Evaluation() {
     if (!docId) return;
     setError("");
     setGenerating(true);
+    setGenLogs([{ text: "Initializing question generation...", cls: "log-dim", time: now() }]);
     setGeneratedQaPairs(null);
     setIsApproved(false);
     setReviewExpanded(true);
     try {
-      const res = await generateQuestions(provider, model, docId, numQuestions);
+      const res = await generateQuestions(provider, model, docId, numQuestions, (msg) => {
+        setGenLogs(prev => {
+          if (prev.length > 0 && prev[prev.length - 1].text === msg) return prev;
+          return [...prev, { text: msg, cls: classifyLog(msg), time: now() }];
+        });
+      });
       setGeneratedQaPairs(res.questions || []);
+      setGenLogs(prev => [...prev, { text: `Generation complete — ${(res.questions || []).length} questions produced.`, cls: "log-ok", time: now() }]);
     } catch (e) {
       setError(e.message);
+      setGenLogs(prev => [...prev, { text: `Error: ${e.message}`, cls: "log-error", time: now() }]);
     } finally {
       setGenerating(false);
     }
@@ -278,6 +294,10 @@ export default function Evaluation() {
           if (s.status === "completed") {
             const r = await getEvalResults(id);
             setResults(r.results);
+            try {
+              const d = await getEvalDetails(id);
+              setEvalDetails(d.details || []);
+            } catch { /* details are optional */ }
             setLogs(prev => [...prev, { text: "Evaluation completed successfully.", cls: "log-ok", time: now() }]);
           }
           if (s.status === "failed") {
@@ -578,6 +598,42 @@ export default function Evaluation() {
             </button>
           )}
         </div>
+
+        {/* Generation Terminal */}
+        {genLogs.length > 0 && (
+          <div className="terminal" style={{ marginTop: 16 }}>
+            <div className="terminal-titlebar">
+              <span className="terminal-dot red" />
+              <span className="terminal-dot yellow" />
+              <span className="terminal-dot green" />
+              <span className="terminal-title" style={{ marginLeft: 8 }}>
+                question generator
+              </span>
+              <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--text-dim)" }}>
+                {genLogs.length} line{genLogs.length !== 1 ? "s" : ""}
+              </span>
+            </div>
+            <div className="terminal-body">
+              {genLogs.map((l, i) => (
+                <div key={i} className={`log-line ${l.cls}`}>
+                  <span className="log-time">{l.time}</span>
+                  <span className="log-prefix">{logPrefix(l.cls)}</span>
+                  <span className="log-msg">{l.text}</span>
+                </div>
+              ))}
+              {generating && (
+                <div className="log-line">
+                  <span className="log-time">{now()}</span>
+                  <span className="log-prefix" style={{ color: "var(--accent)" }}>›</span>
+                  <span className="log-msg">
+                    <span className="log-cursor" />
+                  </span>
+                </div>
+              )}
+              <div ref={genLogEndRef} />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Results */}
@@ -613,6 +669,81 @@ export default function Evaluation() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Per-Question Reasoning */}
+      {evalDetails && evalDetails.length > 0 && (
+        <div className="card">
+          <div
+            className="card-header"
+            onClick={() => setDetailsExpanded(!detailsExpanded)}
+            style={{ cursor: "pointer" }}
+          >
+            <div className="card-icon">🔍</div>
+            <div style={{ flex: 1 }}>
+              <h3>Per-Question Reasoning</h3>
+              <div className="card-subtitle">
+                {evalDetails.length} evaluations across {[...new Set(evalDetails.map(d => d.search_type))].length} strategies
+              </div>
+            </div>
+            <span style={{ fontSize: 18, color: "var(--text-dim)" }}>{detailsExpanded ? "▲" : "▼"}</span>
+          </div>
+
+          {detailsExpanded && (
+            <div style={{ maxHeight: 600, overflowY: "auto", padding: "0 16px 16px" }}>
+              {[...new Set(evalDetails.map(d => d.search_type))].map(st => (
+                <div key={st} style={{ marginBottom: 24 }}>
+                  <h4 style={{ margin: "16px 0 8px", color: "var(--accent)", textTransform: "uppercase", fontSize: 13, letterSpacing: 1 }}>{st}</h4>
+                  {evalDetails.filter(d => d.search_type === st).map((d, i) => (
+                    <div key={i} style={{ padding: 12, marginBottom: 8, border: "1px solid var(--border)", borderRadius: 6, background: "var(--bg-card)" }}>
+                      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>{d.question}</div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 12 }}>
+                        <div>
+                          <span style={{ color: "var(--text-muted)" }}>Accuracy: </span>
+                          <span style={{ color: (d.answer_correctness_score ?? 0) >= 7 ? "#10b981" : (d.answer_correctness_score ?? 0) >= 4 ? "#f59e0b" : "#ef4444", fontWeight: 600 }}>
+                            {d.answer_correctness_score?.toFixed(1) ?? "N/A"}/10
+                          </span>
+                        </div>
+                        <div>
+                          <span style={{ color: "var(--text-muted)" }}>Context: </span>
+                          <span style={{ color: (d.context_relevance_score ?? 0) >= 7 ? "#10b981" : (d.context_relevance_score ?? 0) >= 4 ? "#f59e0b" : "#ef4444", fontWeight: 600 }}>
+                            {d.context_relevance_score?.toFixed(1) ?? "N/A"}/10
+                          </span>
+                        </div>
+                      </div>
+                      {d.answer_correctness_reason && (
+                        <div style={{ marginTop: 6, fontSize: 12, color: "var(--text-dim)", lineHeight: 1.5 }}>
+                          <strong>Accuracy reasoning:</strong> {d.answer_correctness_reason}
+                        </div>
+                      )}
+                      {d.context_relevance_reason && (
+                        <div style={{ marginTop: 4, fontSize: 12, color: "var(--text-dim)", lineHeight: 1.5 }}>
+                          <strong>Context reasoning:</strong> {d.context_relevance_reason}
+                        </div>
+                      )}
+                      {d.rag_reasoning && (
+                        <details style={{ marginTop: 6, fontSize: 12 }}>
+                          <summary style={{ cursor: "pointer", color: "var(--text-muted)" }}>💭 Answer Reasoning</summary>
+                          <div style={{ marginTop: 4, padding: 8, background: "var(--bg-card-hover)", borderRadius: 4, color: "var(--text-dim)", lineHeight: 1.5, whiteSpace: "pre-wrap", fontStyle: "italic" }}>
+                            {d.rag_reasoning}
+                          </div>
+                        </details>
+                      )}
+                      {d.rag_answer && (
+                        <details style={{ marginTop: 6, fontSize: 12 }}>
+                          <summary style={{ cursor: "pointer", color: "var(--text-muted)" }}>RAG Answer</summary>
+                          <div style={{ marginTop: 4, padding: 8, background: "var(--bg-card-hover)", borderRadius: 4, color: "var(--text-dim)", lineHeight: 1.5 }}>
+                            {d.rag_answer}
+                          </div>
+                        </details>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
       {/* Terminal log */}
