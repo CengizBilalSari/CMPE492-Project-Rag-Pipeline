@@ -145,6 +145,7 @@ export default function Evaluation() {
   const [reviewExpanded, setReviewExpanded] = useState(true);
   const [evalDetails, setEvalDetails] = useState(null);
   const [detailsExpanded, setDetailsExpanded] = useState(false);
+  const originalQaPairsRef = useRef(null);
 
   const [allPastJobs, setAllPastJobs] = useState([]);
   const [pastJobId, setPastJobId] = useState("");
@@ -210,7 +211,15 @@ export default function Evaluation() {
     setLoading(true);
     try {
       const qaPairsToPass = (questionSrc === "auto" || questionSrc === "past") ? generatedQaPairs : null;
-      const actualSource = (questionSrc === "auto" || questionSrc === "past") ? "manual" : questionSrc;
+
+      // Determine whether the auto-generated dataset was modified by the user
+      let actualSource = questionSrc;
+      if (questionSrc === "auto" || questionSrc === "past") {
+        const orig = originalQaPairsRef.current;
+        const wasModified = !orig || orig.length !== generatedQaPairs.length ||
+          orig.some((o, i) => o.question !== generatedQaPairs[i].question || o.ground_truth_answer !== generatedQaPairs[i].ground_truth_answer);
+        actualSource = wasModified ? "auto_modified" : "auto";
+      }
 
       const res = await startEvaluation(selected, actualSource, file, provider, model, docId, qaPairsToPass);
       setJobId(res.job_id);
@@ -239,7 +248,9 @@ export default function Evaluation() {
           return [...prev, { text: msg, cls: classifyLog(msg), time: now() }];
         });
       });
-      setGeneratedQaPairs(res.questions || []);
+      const questions = res.questions || [];
+      setGeneratedQaPairs(questions);
+      originalQaPairsRef.current = questions.map(q => ({ ...q }));
       setGenLogs(prev => [...prev, { text: `Generation complete — ${(res.questions || []).length} questions produced.`, cls: "log-ok", time: now() }]);
     } catch (e) {
       setError(e.message);
@@ -259,10 +270,12 @@ export default function Evaluation() {
     try {
       const details = await getEvaluationJobDetails(pastJobId);
       if (details?.qa_pairs) {
-        setGeneratedQaPairs(details.qa_pairs.map(p => ({
+        const loaded = details.qa_pairs.map(p => ({
           question: p.question,
           ground_truth_answer: p.ground_truth_answer
-        })));
+        }));
+        setGeneratedQaPairs(loaded);
+        originalQaPairsRef.current = loaded.map(q => ({ ...q }));
       } else {
         setError("No questions found in this past dataset.");
       }
@@ -453,7 +466,7 @@ export default function Evaluation() {
                 <select value={pastJobId} onChange={e => setPastJobId(e.target.value)}>
                   {allPastJobs.filter(j => j.document_id === docId).length === 0 ? <option value="">No past datasets found for this document</option> : null}
                   {allPastJobs.filter(j => j.document_id === docId).map(j => (
-                    <option key={j.id} value={j.id}>{new Date(j.created_at).toLocaleString()} - source: {j.question_source}</option>
+                    <option key={j.id} value={j.id}>{new Date(j.created_at).toLocaleString()} - {j.question_source === "auto" ? "🤖 Auto" : j.question_source === "auto_modified" ? "🤖 Auto (Modified)" : j.question_source === "manual" ? "✏️ Manual" : "📂 CSV"}</option>
                   ))}
                 </select>
               </div>

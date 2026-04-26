@@ -66,8 +66,8 @@ async def start_evaluation(
             detail=f"Invalid search types: {invalid}. Choose from: {valid}",
         )
 
-    if question_source not in ("custom", "auto", "manual"):
-        raise HTTPException(status_code=400, detail="question_source must be 'custom', 'auto', or 'manual'.")
+    if question_source not in ("custom", "auto", "manual", "auto_modified"):
+        raise HTTPException(status_code=400, detail="question_source must be 'custom', 'auto', 'manual', or 'auto_modified'.")
 
     uploaded_csv_bytes: Optional[bytes] = None
     document_texts: Optional[List[str]] = None

@@ -345,7 +345,10 @@ export default function History() {
             <div style={{ marginBottom: 24 }}>
               <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Evaluation Details</h2>
               <p style={{ color: "var(--text-muted)", fontSize: 14 }}>
-                {selectedJob.question_source === "auto" ? "🤖 Auto-generated Questions" : "📂 Uploaded CSV"}
+                {selectedJob.question_source === "auto" ? "🤖 Auto-generated Questions" :
+                 selectedJob.question_source === "auto_modified" ? "🤖 Auto-generated (Modified)" :
+                 selectedJob.question_source === "manual" ? "✏️ Manual Questions" :
+                 "📂 Uploaded CSV"}
               </p>
             </div>
 
