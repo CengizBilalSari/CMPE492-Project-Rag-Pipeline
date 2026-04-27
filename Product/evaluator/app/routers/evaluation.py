@@ -5,7 +5,11 @@ import json
 import logging
 from typing import List, Optional
 
+import queue
+import threading
+
 from fastapi import APIRouter, BackgroundTasks, File, Form, Header, HTTPException, UploadFile
+from fastapi.responses import StreamingResponse
 
 from app.models.evaluation import (
     EvaluationJobStatus,
@@ -62,8 +66,8 @@ async def start_evaluation(
             detail=f"Invalid search types: {invalid}. Choose from: {valid}",
         )
 
-    if question_source not in ("custom", "auto", "manual"):
-        raise HTTPException(status_code=400, detail="question_source must be 'custom', 'auto', or 'manual'.")
+    if question_source not in ("custom", "auto", "manual", "auto_modified"):
+        raise HTTPException(status_code=400, detail="question_source must be 'custom', 'auto', 'manual', or 'auto_modified'.")
 
     uploaded_csv_bytes: Optional[bytes] = None
     document_texts: Optional[List[str]] = None
@@ -166,13 +170,35 @@ async def generate_questions(
         raise HTTPException(status_code=500, detail="Could not extract text from document.")
 
     from app.evaluation.pipeline import QuestionGenerator
-    generator = QuestionGenerator(provider=llm_provider, model=llm_model)
-    try:
-        qa_pairs = generator.generate_from_text(text, num_questions=num_questions)
-        return {"questions": qa_pairs}
-    except Exception as e:
-        logger.error("Failed to generate questions: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
+    progress_queue = queue.Queue()
+
+    def run():
+        try:
+            generator = QuestionGenerator(provider=llm_provider, model=llm_model)
+            qa_pairs = generator.generate_from_text(
+                text,
+                num_questions=num_questions,
+                on_progress=lambda msg: progress_queue.put({"type": "progress", "message": msg}),
+            )
+            progress_queue.put({"type": "complete", "questions": qa_pairs})
+        except Exception as e:
+            logger.error("Failed to generate questions: %s", e)
+            progress_queue.put({"type": "error", "message": str(e)})
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+
+    def event_stream():
+        while True:
+            try:
+                event = progress_queue.get(timeout=300)
+                yield f"data: {json.dumps(event)}\n\n"
+                if event["type"] in ("complete", "error"):
+                    break
+            except queue.Empty:
+                break
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
 @router.get("/status/{job_id}", response_model=EvaluationJobStatus)
@@ -208,3 +234,16 @@ async def get_evaluation_results(job_id: str):
         for r in rows
     ]
     return EvaluationResultsResponse(job_id=job_id, results=results)
+
+
+@router.get("/details/{job_id}")
+async def get_evaluation_details(job_id: str):
+    """Return per-question evaluation results with reasoning for each search type."""
+    job = evaluation_service.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    if job["status"] != "completed":
+        raise HTTPException(status_code=400, detail=f"Job not completed yet. Status: {job['status']}")
+
+    details = evaluation_service.get_detailed_results(job_id)
+    return {"job_id": job_id, "details": details}

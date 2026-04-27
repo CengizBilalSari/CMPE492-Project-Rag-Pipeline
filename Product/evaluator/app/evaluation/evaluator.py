@@ -22,6 +22,7 @@ class EvalRow:
     ground_truth_answer: str
     search_type: str = ""
     rag_answer: str = ""
+    rag_reasoning: str = ""
     retrieved_contexts: Optional[List[str]] = None
     answer_correctness_score: Optional[float] = None
     answer_correctness_reason: Optional[str] = None
@@ -126,10 +127,14 @@ class LLMJudge:
                 try:
                     data = json.loads(match.group(0))
                 except json.JSONDecodeError as e:
-                    logger.warning(f"Failed to parse fallback JSON: {e}")
+                    logger.warning("Failed to parse fallback JSON: %s\nRaw response (first 500 chars): %s", e, raw[:500])
                     data = {}
             else:
+                logger.warning("No JSON found in judge response.\nRaw (first 500 chars): %s\nCleaned (first 500 chars): %s", raw[:500], clean[:500])
                 data = {}
+
+        if not data.get("answer_correctness") or not data.get("context_relevance"):
+            logger.warning("Judge returned incomplete data: %s", json.dumps(data)[:300])
 
         ac = data.get("answer_correctness", {})
         cr = data.get("context_relevance", {})
@@ -166,6 +171,7 @@ class RAGEvaluator:
             result = self._search_client.query(question, search_type=search_type)
 
             rag_answer = result["answer"]
+            rag_reasoning = result.get("reasoning", "")
             contexts = result.get("retrieved_contexts", [])
 
             logger.info("Judging question %d/%d", i + 1, len(qa_rows))
@@ -181,6 +187,7 @@ class RAGEvaluator:
                 ground_truth_answer=ground_truth,
                 search_type=search_type,
                 rag_answer=rag_answer,
+                rag_reasoning=rag_reasoning,
                 retrieved_contexts=contexts,
                 answer_correctness_score=scores["answer_correctness_score"],
                 answer_correctness_reason=scores["answer_correctness_reason"],

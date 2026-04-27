@@ -228,18 +228,19 @@ def start_evaluation_job(
                         cur.execute(
                             """
                             INSERT INTO qa_evaluations (
-                                job_id, qa_pair_id, search_type, rag_answer, retrieved_contexts,
+                                job_id, qa_pair_id, search_type, rag_answer, rag_reasoning, retrieved_contexts,
                                 answer_correctness_score, answer_correctness_reason,
                                 context_relevance_score, context_relevance_reason,
                                 latency_ms, prompt_tokens, completion_tokens, total_tokens
                             )
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                             """,
                             (
                                 job_id,
                                 pair_id,
                                 st,
                                 er.rag_answer,
+                                er.rag_reasoning,
                                 json.dumps(er.retrieved_contexts or []),
                                 er.answer_correctness_score,
                                 er.answer_correctness_reason,
@@ -271,3 +272,31 @@ def _parse_csv(csv_bytes: bytes) -> List[Dict[str, str]]:
         if q and a:
             rows.append({"question": q, "ground_truth_answer": a})
     return rows
+
+
+def get_detailed_results(job_id: str) -> List[Dict[str, Any]]:
+    """Return per-question evaluation data with reasoning, grouped by search type."""
+    with connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                    qe.search_type,
+                    qp.question,
+                    qp.ground_truth_answer,
+                    qe.rag_answer,
+                    qe.rag_reasoning,
+                    qe.answer_correctness_score,
+                    qe.answer_correctness_reason,
+                    qe.context_relevance_score,
+                    qe.context_relevance_reason,
+                    qe.latency_ms,
+                    qe.total_tokens
+                FROM qa_evaluations qe
+                JOIN qa_pairs qp ON qp.id = qe.qa_pair_id
+                WHERE qe.job_id = %s
+                ORDER BY qe.search_type, qp.question
+                """,
+                (job_id,),
+            )
+            return [dict(r) for r in cur.fetchall()]

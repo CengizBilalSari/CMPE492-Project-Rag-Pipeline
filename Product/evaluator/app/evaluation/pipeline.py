@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-from typing import List
+from typing import Callable, List, Optional
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -41,13 +41,14 @@ class QuestionGenerator:
 
     # Large window for the Map phase of the summarization pipeline.
     # Each map-chunk is summarized independently before being reduced.
-    SUMMARY_MAP_CHUNK_SIZE = 15000
-    SUMMARY_MAP_OVERLAP = 1500
+    SUMMARY_MAP_CHUNK_SIZE = 8000
+    SUMMARY_MAP_OVERLAP = 800
 
     def generate_from_text(
         self,
         text: str,
         num_questions: int = 10,
+        on_progress: Optional[Callable[[str], None]] = None,
     ) -> List[dict]:
         """Generate QA pairs using a dual-strategy pipeline.
 
@@ -84,6 +85,10 @@ class QuestionGenerator:
         │  be able to answer from a single chunk hit.              │
         └──────────────────────────────────────────────────────────┘
         """
+        def _progress(msg: str) -> None:
+            if on_progress:
+                on_progress(msg)
+
         num_global = num_questions // 2
         num_local = num_questions - num_global
 
@@ -105,6 +110,7 @@ class QuestionGenerator:
             "Summarization MAP phase: %d chunks of ~%d chars",
             len(map_chunks), self.SUMMARY_MAP_CHUNK_SIZE,
         )
+        _progress(f"MAP phase: splitting document into {len(map_chunks)} chunks...")
 
         summaries: list[str] = []
         for idx, chunk in enumerate(map_chunks):
@@ -114,6 +120,7 @@ class QuestionGenerator:
             {
             "summary": "your summary here"
             }"""
+            _progress(f"Summarizing chunk {idx + 1}/{len(map_chunks)}...")
             try:
                 raw_response = self._call_llm(
                     messages=[
@@ -124,6 +131,12 @@ class QuestionGenerator:
                 )
                 data = self._parse_json(raw_response)
                 summary = data.get("summary", "")
+                if isinstance(summary, (dict, list)):
+                    import json
+                    summary = json.dumps(summary)
+                elif not isinstance(summary, str):
+                    summary = str(summary)
+
                 if summary:
                     summaries.append(summary)
                     logger.debug("MAP chunk %d/%d summarized (%d chars)", idx + 1, len(map_chunks), len(summary))
@@ -138,8 +151,7 @@ class QuestionGenerator:
         )
 
         # GENERATE PHASE: produce global questions from the super-summary
-        # Since combined_summary is just one text block, we ask the LLM
-        # to generate all num_global questions in a single request.
+        _progress("Generating global questions from summary...")
         if num_global > 0:
             prompt = f"""You are an expert evaluation engineer.
 
@@ -197,6 +209,7 @@ class QuestionGenerator:
             q_count = q_per_local + (1 if i < local_rem else 0)
             if q_count <= 0:
                 continue
+            _progress(f"Generating local questions ({i + 1}/{len(local_chunks)})...")
 
             prompt = f"""You are an expert evaluation engineer.
 
@@ -245,11 +258,16 @@ Return ONLY a valid JSON object:
                 "model": self.model,
                 "messages": messages,
                 "temperature": 0.0,
-                "max_tokens": 2048,
+                "max_tokens": 8192,
             }
+            
             endpoint = self.base_url if self.base_url.endswith("/chat/completions") else f"{self.base_url}/chat/completions"
             res = httpx.post(endpoint, json=payload, timeout=120.0)
-            res.raise_for_status()
+            try:
+                res.raise_for_status()
+            except httpx.HTTPStatusError as e:
+                logger.error("HTTP error %s: %s", res.status_code, res.text)
+                raise
             return res.json()["choices"][0]["message"]["content"] or ""
         else:
             kwargs = {}
@@ -272,7 +290,15 @@ Return ONLY a valid JSON object:
         try:
             return json.loads(clean)
         except json.JSONDecodeError:
-            match = re.search(r"\{.*\}", clean, flags=re.DOTALL)
-            if match:
-                return json.loads(match.group(0))
+            # Try to find the first `{` and extract a valid JSON object character-by-character
+            start_idx = clean.find('{')
+            if start_idx != -1:
+                # Try progressively larger substrings until we get a valid JSON
+                for end_idx in range(len(clean), start_idx, -1):
+                    if clean[end_idx - 1] == '}':
+                        try:
+                            return json.loads(clean[start_idx:end_idx])
+                        except json.JSONDecodeError:
+                            continue
+            logger.error("JSON parse failed. Raw response was:\n%s", raw)
             raise ValueError("No JSON found in LLM response")

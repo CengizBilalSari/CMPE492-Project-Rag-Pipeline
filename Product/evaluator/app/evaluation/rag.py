@@ -76,7 +76,10 @@ class OpenAILLM(LLMInterface):
             ct = getattr(response.usage, "completion_tokens", 0) if response.usage else 0
 
         import re
+        reasoning_match = re.search(r"<think>(.*?)</think>", content, flags=re.DOTALL)
+        reasoning = reasoning_match.group(1).strip() if reasoning_match else ""
         content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+        self._last_reasoning = reasoning
         self._update_and_log_usage(pt, ct, duration)
         return content
 
@@ -131,11 +134,12 @@ class GraphRAGSearchClient:
             raise ValueError(f"Unknown search_type '{search_type}'. Choose from: {VALID_SEARCH_TYPES}")
 
         t0 = time.perf_counter()
-        answer, contexts, prompt_tokens, completion_tokens = asyncio.run(self._search(question, search_type))
+        answer, contexts, prompt_tokens, completion_tokens, reasoning = asyncio.run(self._search(question, search_type))
         latency_ms = (time.perf_counter() - t0) * 1000
 
         return {
             "answer": answer or "",
+            "reasoning": reasoning or "",
             "retrieved_contexts": contexts,
             "latency_ms": latency_ms,
             "prompt_tokens": prompt_tokens,
@@ -154,11 +158,11 @@ class GraphRAGSearchClient:
         try:
             if mode == "no-retriever":
                 answer = await llm.ainvoke(question)
-                return answer, [], llm.total_prompt_tokens, llm.total_completion_tokens
+                return answer, [], llm.total_prompt_tokens, llm.total_completion_tokens, getattr(llm, '_last_reasoning', '')
 
             if mode == "rag":
                 answer, contexts = await self._baseline_rag(driver, llm, embed_fn, question)
-                return answer, contexts, llm.total_prompt_tokens, llm.total_completion_tokens
+                return answer, contexts, llm.total_prompt_tokens, llm.total_completion_tokens, getattr(llm, '_last_reasoning', '')
 
             if mode == "local":
                 retriever = LocalRetriever(
@@ -210,7 +214,7 @@ class GraphRAGSearchClient:
                 answer = await llm.ainvoke(question)
                 contexts = []
 
-            return answer, contexts, llm.total_prompt_tokens, llm.total_completion_tokens
+            return answer, contexts, llm.total_prompt_tokens, llm.total_completion_tokens, getattr(llm, '_last_reasoning', '')
 
         finally:
             driver.close()
