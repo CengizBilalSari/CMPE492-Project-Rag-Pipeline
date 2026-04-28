@@ -128,12 +128,12 @@ class LazyRetriever:
                     except (AttributeError, ValueError):
                         score = 0
 
-                        if score >= 5:
+                    if score >= 5:
                         map_prompt = MAP_PROMPT.format(subquery=sq, chunk=chunk_text)
                         claims = await self.llm.ainvoke(map_prompt)
                         if "NONE" not in claims.upper():
                             return claims, chunk_text
-                        return "", ""
+                    return "", ""
 
             tasks = [process_chunk(c) for c in chunks[:self.max_chunks]]
             results = await asyncio.gather(*tasks)
