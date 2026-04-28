@@ -110,3 +110,18 @@ CREATE TABLE IF NOT EXISTS qa_evaluations (
 
 CREATE INDEX IF NOT EXISTS idx_qa_evaluations_job  ON qa_evaluations(job_id);
 CREATE INDEX IF NOT EXISTS idx_qa_evaluations_pair ON qa_evaluations(qa_pair_id);
+
+-- ── Microsoft GraphRAG workspace tracking ───────────────────
+CREATE TABLE IF NOT EXISTS ms_graphrag_runs (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  chat_id        UUID NOT NULL REFERENCES chats(chat_id) ON DELETE CASCADE,
+  document_id    UUID REFERENCES documents(id) ON DELETE SET NULL,
+  workspace_path TEXT NOT NULL,
+  status         TEXT NOT NULL DEFAULT 'CREATED',
+  error          TEXT,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  completed_at   TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_ms_graphrag_runs_chat ON ms_graphrag_runs(chat_id);
+CREATE INDEX IF NOT EXISTS idx_ms_graphrag_runs_doc  ON ms_graphrag_runs(document_id);
