@@ -130,6 +130,7 @@ class PostgresConfig(BaseModel):
 
 class StorageConfig(BaseModel):
     base_path: str = Field(default_factory=lambda: os.getenv("STORAGE_BASE", "/docs"))
+    ms_graphrag_base: str = Field(default_factory=lambda: os.getenv("MS_GRAPHRAG_BASE", "/graphrag_workspaces"))
 
 
 class PipelineConfig(BaseModel):
