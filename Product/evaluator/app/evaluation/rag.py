@@ -95,7 +95,7 @@ async def _hf_embed(texts: list[str], model_name: str = "all-MiniLM-L6-v2", show
     return embeddings.tolist()
 
 
-VALID_SEARCH_TYPES = {"global", "local", "lazy", "ppr", "rag", "no-retriever"}
+VALID_SEARCH_TYPES = {"global", "local", "lazy", "ppr", "rag", "no-retriever", "ms-graphrag-global", "ms-graphrag-local"}
 
 
 class GraphRAGSearchClient:
@@ -119,6 +119,8 @@ class GraphRAGSearchClient:
         llm_provider: str = "openai",
         llm_model: str = "gpt-4o",
         embedding_model: str = "all-MiniLM-L6-v2",
+        chat_id: str = "",
+        document_id: str = "",
     ) -> None:
         self._neo4j_uri = neo4j_uri
         self._neo4j_user = neo4j_user
@@ -127,6 +129,8 @@ class GraphRAGSearchClient:
         self._llm_provider = llm_provider
         self._llm_model = llm_model
         self._embedding_model = embedding_model
+        self._chat_id = chat_id
+        self._document_id = document_id
 
     def query(self, question: str, search_type: str = "global") -> Dict[str, Any]:
         search_type = search_type.lower()
@@ -159,6 +163,34 @@ class GraphRAGSearchClient:
             if mode == "no-retriever":
                 answer = await llm.ainvoke(question)
                 return answer, [], llm.total_prompt_tokens, llm.total_completion_tokens, getattr(llm, '_last_reasoning', '')
+
+            # ── MS GraphRAG modes ──
+            if mode.startswith("ms-graphrag"):
+                ms_method = "global" if mode == "ms-graphrag-global" else "local"
+                workspace_path = self._find_ms_graphrag_workspace()
+                if not workspace_path:
+                    answer = await llm.ainvoke(question)
+                    return (
+                        f"[MS GraphRAG {ms_method}] No indexed workspace found for this chat. "
+                        f"Please run the Microsoft GraphRAG pipeline first. Falling back to direct LLM.\n\n{answer}",
+                        [], llm.total_prompt_tokens, llm.total_completion_tokens, getattr(llm, '_last_reasoning', '')
+                    )
+
+                from .retrievers.ms_graphrag_retriever import MSGraphRAGRetriever
+                retriever = MSGraphRAGRetriever(
+                    workspace_path=workspace_path,
+                    llm_provider=self._llm_provider,
+                    llm_model=self._llm_model,
+                    api_key=os.getenv("OPENAI_API_KEY", ""),
+                )
+                result = await retriever.search(question, method=ms_method)
+                return (
+                    result["answer"],
+                    result["contexts"],
+                    result["prompt_tokens"],
+                    result["completion_tokens"],
+                    "",  # no reasoning extraction for MS GraphRAG
+                )
 
             if mode == "rag":
                 answer, contexts = await self._baseline_rag(driver, llm, embed_fn, question)
@@ -220,6 +252,40 @@ class GraphRAGSearchClient:
             driver.close()
             if hasattr(llm, "_client") and hasattr(llm._client, "close"):
                 await llm._client.close()
+
+    def _find_ms_graphrag_workspace(self) -> str:
+        """Look up the most recent completed MS GraphRAG workspace for this chat."""
+        from app.services.db import connection
+
+        try:
+            with connection() as conn:
+                with conn.cursor() as cur:
+                    if self._document_id:
+                        cur.execute(
+                            """
+                            SELECT workspace_path FROM ms_graphrag_runs
+                            WHERE chat_id = %s AND document_id = %s AND status = 'COMPLETED'
+                            ORDER BY completed_at DESC
+                            LIMIT 1
+                            """,
+                            (self._chat_id, self._document_id),
+                        )
+                    else:
+                        cur.execute(
+                            """
+                            SELECT workspace_path FROM ms_graphrag_runs
+                            WHERE chat_id = %s AND status = 'COMPLETED'
+                            ORDER BY completed_at DESC
+                            LIMIT 1
+                            """,
+                            (self._chat_id,),
+                        )
+                    row = cur.fetchone()
+                    if row:
+                        return row["workspace_path"]
+        except Exception as exc:
+            logger.warning("Failed to find MS GraphRAG workspace: %s", exc)
+        return ""
 
     async def _baseline_rag(self, driver, llm, embed_fn, question: str):
         """Baseline RAG: simple vector similarity over chunks, no graph algorithms."""
