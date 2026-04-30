@@ -217,9 +217,10 @@ class GraphRAGPipeline:
         yield f"Step 3/6: Entity Resolution complete — {len(decisions)} merge groups resolved."
 
     async def _embedding_step(self, doc_id: str) -> AsyncGenerator[str, None]:
-        yield "Step 4/6: Embedding entities..."
+        yield "Step 4/6: Embedding entities and chunks..."
         t0 = time.time()
 
+        # 1. Embed Entities
         entity_rows: list[tuple[str, str]] = []
         with self._driver.session(database=self.config.neo4j.database) as session:
             result = session.run(
@@ -228,25 +229,46 @@ class GraphRAGPipeline:
             )
             entity_rows = [(r["name"], r["description"] or "") for r in result if r["name"]]
 
-        if not entity_rows:
-            self.step_times["4. Embedding"] = time.time() - t0
-            yield "Step 4/6: Embedding — skipped (all entities already embedded)."
-            return
+        if entity_rows:
+            embed_texts = [
+                f"{name}: {desc}".strip(": ") if desc else name
+                for name, desc in entity_rows
+            ]
+            entity_embeddings = await hf_embed(
+                embed_texts,
+                model_name=self.config.embedding.model,
+                show_progress=True,
+            )
+            name_to_emb = {name: emb for (name, _), emb in zip(entity_rows, entity_embeddings)}
+            self.writer.write_entity_embeddings(name_to_emb)
+            yield f"  - Embedded {len(entity_rows)} entities."
 
-        embed_texts = [
-            f"{name}: {desc}".strip(": ") if desc else name
-            for name, desc in entity_rows
-        ]
-        entity_embeddings = await hf_embed(
-            embed_texts,
-            model_name=self.config.embedding.model,
-            show_progress=True,
-        )
-        name_to_emb = {name: emb for (name, _), emb in zip(entity_rows, entity_embeddings)}
-        self.writer.write_entity_embeddings(name_to_emb)
+        # 2. Embed Chunks
+        chunk_rows: list[tuple[str, str]] = []
+        with self._driver.session(database=self.config.neo4j.database) as session:
+            result = session.run(
+                "MATCH (c:Chunk) WHERE c.text_embedding IS NULL "
+                "RETURN c.id AS id, c.text AS text"
+            )
+            chunk_rows = [(r["id"], r["text"]) for r in result if r["text"]]
+
+        if chunk_rows:
+            chunk_texts = [text for _, text in chunk_rows]
+            chunk_embeddings = await hf_embed(
+                chunk_texts,
+                model_name=self.config.embedding.model,
+                show_progress=True,
+            )
+            id_to_emb = {cid: emb for (cid, _), emb in zip(chunk_rows, chunk_embeddings)}
+            self.writer.write_chunk_embeddings(id_to_emb)
+            yield f"  - Embedded {len(chunk_rows)} chunks."
 
         self.step_times["4. Embedding"] = time.time() - t0
-        yield f"Step 4/6: Embedding complete — {len(entity_rows)} entities embedded."
+        
+        if not entity_rows and not chunk_rows:
+            yield "Step 4/6: Embedding — skipped (all entities and chunks already embedded)."
+        else:
+            yield f"Step 4/6: Embedding complete."
 
     async def _community_step(self, doc_id: str) -> AsyncGenerator[str, None]:
         yield "Step 5/6: Community detection..."
