@@ -209,6 +209,7 @@ export default function History() {
                     <th>Job ID</th>
                     <th>Document</th>
                     <th>Search Types</th>
+                    <th>LLM</th>
                     <th>Status</th>
                     <th>Created At</th>
                   </tr>
@@ -231,6 +232,13 @@ export default function History() {
                             </span>
                           ))}
                         </div>
+                      </td>
+                      <td>
+                        {j.provider && j.model ? (
+                          <span style={{ fontSize: 12 }}>{j.provider} / {j.model}</span>
+                        ) : (
+                          <span style={{ color: "var(--text-muted)", fontSize: 12 }}>—</span>
+                        )}
                       </td>
                       <td><Badge status={j.status} /></td>
                       <td>{new Date(j.created_at).toLocaleString()}</td>
@@ -356,6 +364,9 @@ export default function History() {
               <div className="stat-pill">Status <span><Badge status={selectedJob.status} /></span></div>
               <div className="stat-pill">ID <span>{selectedJob.id.slice(0,8)}…</span></div>
               <div className="stat-pill">Created <span>{new Date(selectedJob.created_at).toLocaleString()}</span></div>
+              {selectedJob.provider && selectedJob.model && (
+                <div className="stat-pill">LLM <span>{selectedJob.provider} / {selectedJob.model}</span></div>
+              )}
             </div>
 
             {selectedJob.error && (

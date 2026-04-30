@@ -258,7 +258,7 @@ Return ONLY a valid JSON object:
                 "model": self.model,
                 "messages": messages,
                 "temperature": 0.0,
-                "max_tokens": 8192,
+                "max_tokens": 16384,
             }
             
             endpoint = self.base_url if self.base_url.endswith("/chat/completions") else f"{self.base_url}/chat/completions"
@@ -285,6 +285,7 @@ Return ONLY a valid JSON object:
         """Extract a JSON object from an LLM response, handling think-tags and markdown fences."""
         import re
         clean = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
+        clean = re.sub(r"//.*$", "", clean, flags=re.MULTILINE)
         if clean.startswith("```"):
             clean = clean.split("\n", 1)[1].rsplit("```", 1)[0]
         try:

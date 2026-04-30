@@ -55,7 +55,8 @@ Rules:
 - Predicates should be descriptive verb phrases in UPPER_SNAKE_CASE (e.g., WORKS_AT, LOCATED_IN).
 - subject and object in relations must exactly match an entity name.
 - If no entities or relations are found, return empty arrays.
-- Return ONLY the JSON, no markdown fences, no explanation."""
+- Return ONLY the JSON, no markdown fences, no explanation.
+- DO NOT include any inline comments (e.g., //) inside the JSON."""
 
 
 class EntityRelationshipExtractor:
@@ -102,6 +103,7 @@ class EntityRelationshipExtractor:
         try:
             clean = response.strip()
             clean = re.sub(r"<think>.*?</think>", "", clean, flags=re.DOTALL).strip()
+            clean = re.sub(r"//.*$", "", clean, flags=re.MULTILINE)
             if clean.startswith("```"):
                 clean = clean.split("\n", 1)[1].rsplit("```", 1)[0]
             

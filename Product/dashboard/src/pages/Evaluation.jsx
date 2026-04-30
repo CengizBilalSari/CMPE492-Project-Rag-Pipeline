@@ -433,22 +433,34 @@ export default function Evaluation() {
         </div>
 
         {questionSrc === "custom" ? (
-          <div
-            className="file-drop"
-            onClick={() => fileRef.current.click()}
-            style={{ marginBottom: 16, padding: "20px 24px" }}
-          >
-            <span className="file-drop-icon" style={{ fontSize: 24 }}>📊</span>
-            <div className="file-drop-text">
-              {file ? `✅ ${file.name}` : "Click to select a CSV file"}
+          <div className="card-body">
+            <p style={{ marginBottom: "12px" }}>Upload a CSV with your own evaluation questions.</p>
+            <div className="form-row" style={{ marginBottom: "16px" }}>
+              <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
+                <label>Target Document</label>
+                <select value={docId} onChange={e => setDocId(e.target.value)}>
+                  {docs.length === 0 ? <option value="">No documents found</option> : null}
+                  {docs.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+              </div>
             </div>
-            <div className="file-drop-sub">Requires: question, ground_truth_answer columns</div>
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".csv"
-              onChange={(e) => setFile(e.target.files[0])}
-            />
+            <div
+              className="file-drop"
+              onClick={() => fileRef.current.click()}
+              style={{ marginBottom: 16, padding: "20px 24px" }}
+            >
+              <span className="file-drop-icon" style={{ fontSize: 24 }}>📊</span>
+              <div className="file-drop-text">
+                {file ? `✅ ${file.name}` : "Click to select a CSV file"}
+              </div>
+              <div className="file-drop-sub">Requires: question, ground_truth_answer columns</div>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".csv"
+                onChange={(e) => setFile(e.target.files[0])}
+              />
+            </div>
           </div>
         ) : questionSrc === "past" ? (
           <div className="card-body">
