@@ -154,7 +154,13 @@ async def run_pipeline(ws: WebSocket):
         config_overrides = payload.get("config", {})
         config = PipelineConfig(**config_overrides)
 
-        pipeline = GraphRAGPipeline(config, chat_id=chat_id, document_id=document_id)
+        pipeline_type = payload.get("pipeline_type", "custom")
+
+        if pipeline_type == "ms-graphrag":
+            from services.ms_graphrag_pipeline import MSGraphRAGPipeline
+            pipeline = MSGraphRAGPipeline(config, chat_id=chat_id, document_id=document_id)
+        else:
+            pipeline = GraphRAGPipeline(config, chat_id=chat_id, document_id=document_id)
 
         try:
             async for status_msg in pipeline.run(

@@ -49,8 +49,10 @@ services:
       NEO4J_PASSWORD: "12345678"
       DATABASE_URL: postgresql://graphrag:graphrag@postgres:5432/graphrag
       STORAGE_BASE: /docs
+      MS_GRAPHRAG_BASE: /graphrag_workspaces
     volumes:
       - graphrag_docs:/docs
+      - ms_graphrag_workspaces:/graphrag_workspaces
     depends_on:
       neo4j:
         condition: service_healthy
@@ -69,8 +71,10 @@ services:
       NEO4J_PASSWORD: "12345678"
       DATABASE_URL: postgresql://graphrag:graphrag@postgres:5432/graphrag
       STORAGE_BASE: /docs
+      MS_GRAPHRAG_BASE: /graphrag_workspaces
     volumes:
       - graphrag_docs:/docs
+      - ms_graphrag_workspaces:/graphrag_workspaces
     depends_on:
       neo4j:
         condition: service_healthy
@@ -91,3 +95,4 @@ volumes:
   neo4j_logs:
   postgres_data:
   graphrag_docs:
+  ms_graphrag_workspaces:

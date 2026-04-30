@@ -33,13 +33,21 @@ async def list_pipeline_runs(x_chat_id: str = Header(..., alias="X-Chat-Id")):
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT pr.*, d.name AS document_name
+                SELECT pr.id, pr.chat_id, pr.document_id, pr.status, pr.config, pr.step_times, pr.llm_usage, pr.neo4j_stats, pr.error, pr.started_at, pr.completed_at, d.name AS document_name, 'custom' as pipeline_type
                 FROM pipeline_runs pr
                 LEFT JOIN documents d ON d.id = pr.document_id
                 WHERE pr.chat_id = %s
-                ORDER BY pr.started_at DESC
+                
+                UNION ALL
+                
+                SELECT ms.id, ms.chat_id, ms.document_id, ms.status, NULL::jsonb as config, NULL::jsonb as step_times, NULL::jsonb as llm_usage, NULL::jsonb as neo4j_stats, ms.error, ms.created_at as started_at, ms.completed_at, d.name AS document_name, 'ms-graphrag' as pipeline_type
+                FROM ms_graphrag_runs ms
+                LEFT JOIN documents d ON d.id = ms.document_id
+                WHERE ms.chat_id = %s
+                
+                ORDER BY started_at DESC
                 """,
-                (x_chat_id,),
+                (x_chat_id, x_chat_id),
             )
             return _rows(cur)
 

@@ -24,6 +24,9 @@ Levenshtein==0.27.3
 networkx==3.6.1
 tiktoken==0.11.0
 
+# Microsoft GraphRAG
+graphrag==3.0.9
+
 # Config & utilities
 pydantic==2.12.5
 pydantic-settings==2.12.0

@@ -14,7 +14,7 @@ import { Bar } from "react-chartjs-2";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
-const SEARCH_TYPES = ["global", "local", "ppr", "rag", "no-retriever"];
+const SEARCH_TYPES = ["global", "local", "ppr", "rag", "no-retriever", "ms-graphrag-global", "ms-graphrag-local"];
 
 const PROVIDERS = ["openai", "lmstudio", "ollama"];
 const MODELS = {

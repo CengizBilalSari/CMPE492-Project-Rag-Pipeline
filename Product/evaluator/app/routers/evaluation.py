@@ -58,7 +58,7 @@ async def start_evaluation(
     if not types_list:
         raise HTTPException(status_code=400, detail="search_types must not be empty.")
 
-    valid = {"global", "local", "lazy", "ppr", "rag", "no-retriever"}
+    valid = {"global", "local", "lazy", "ppr", "rag", "no-retriever", "ms-graphrag-global", "ms-graphrag-local"}
     invalid = set(types_list) - valid
     if invalid:
         raise HTTPException(

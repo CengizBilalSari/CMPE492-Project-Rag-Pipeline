@@ -67,6 +67,7 @@ export default function Pipeline() {
   const [overlap, setOverlap] = useState(50);
   const [embeddingModel, setEmbeddingModel] = useState(localStorage.getItem("graphrag_embedding_model") || "all-MiniLM-L6-v2");
   const [useLlmRes, setUseLlmRes] = useState(true);
+  const [pipelineType, setPipelineType] = useState("custom");
   const [logs, setLogs] = useState([]);
   const [running, setRunning] = useState(false);
   const [done, setDone] = useState(false);
@@ -123,6 +124,7 @@ export default function Pipeline() {
       document_id: docId,
       doc_title: docs.find((d) => d.id === docId)?.name || "untitled",
       doc_source: "upload",
+      pipeline_type: pipelineType,
       config: {
         llm: { provider, model },
         chunking: { strategy: chunker, chunk_size: chunkSize, overlap },
@@ -214,6 +216,14 @@ export default function Pipeline() {
               ))}
             </select>
           </div>
+
+          <div className="form-group">
+            <label>Pipeline Type</label>
+            <select value={pipelineType} onChange={(e) => setPipelineType(e.target.value)}>
+              <option value="custom">Custom (Neo4j)</option>
+              <option value="ms-graphrag">Microsoft GraphRAG</option>
+            </select>
+          </div>
         </div>
 
         <div className="form-row">
@@ -226,85 +236,122 @@ export default function Pipeline() {
             </select>
           </div>
 
-          <div className="form-group">
-            <label>Chunking Strategy</label>
-            <select value={chunker} onChange={(e) => setChunker(e.target.value)}>
-              {chunkers.map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-            </select>
-          </div>
+          {pipelineType === "custom" && (
+            <div className="form-group">
+              <label>Chunking Strategy</label>
+              <select value={chunker} onChange={(e) => setChunker(e.target.value)}>
+                {chunkers.map((c) => (
+                  <option key={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
-        <div className="form-row">
-          <div className="form-group">
-            <label>Embedding Model (Locked to Workspace)</label>
-            <div style={{
-              padding: "10px 12px",
-              backgroundColor: "var(--bg-subtle)",
-              borderRadius: "6px",
-              border: "1px solid var(--border)",
-              marginTop: "4px",
-              display: "flex",
-              alignItems: "center",
-              gap: "8px"
-            }}>
-              <span style={{ fontSize: "16px" }}>🧬</span>
-              <span className="code-text" style={{ fontSize: "14px", fontWeight: 500 }}>{embeddingModel}</span>
-            </div>
-            <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 8 }}>
-              This chat base was created using the <strong>{embeddingModel}</strong> model. It cannot be changed to ensure vector space integrity.
+        {pipelineType === "custom" && (
+          <div className="form-row">
+            <div className="form-group">
+              <label>Embedding Model (Locked to Workspace)</label>
+              <div style={{
+                padding: "10px 12px",
+                backgroundColor: "var(--bg-subtle)",
+                borderRadius: "6px",
+                border: "1px solid var(--border)",
+                marginTop: "4px",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px"
+              }}>
+                <span style={{ fontSize: "16px" }}>🧬</span>
+                <span className="code-text" style={{ fontSize: "14px", fontWeight: 500 }}>{embeddingModel}</span>
+              </div>
+              <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 8 }}>
+                This chat base was created using the <strong>{embeddingModel}</strong> model. It cannot be changed to ensure vector space integrity.
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
-        <div className="form-row" style={{ marginBottom: 20 }}>
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label>Chunk Size</label>
-            <input
-              type="number"
-              value={chunkSize}
-              min={100} max={4096}
-              onChange={(e) => setChunkSize(Number(e.target.value))}
-            />
+        {pipelineType === "custom" && (
+          <div className="form-row" style={{ marginBottom: 20 }}>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label>Chunk Size</label>
+              <input
+                type="number"
+                value={chunkSize}
+                min={100} max={4096}
+                onChange={(e) => setChunkSize(Number(e.target.value))}
+              />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label>Overlap</label>
+              <input
+                type="number"
+                value={overlap}
+                min={0} max={500}
+                onChange={(e) => setOverlap(Number(e.target.value))}
+              />
+            </div>
           </div>
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label>Overlap</label>
-            <input
-              type="number"
-              value={overlap}
-              min={0} max={500}
-              onChange={(e) => setOverlap(Number(e.target.value))}
-            />
-          </div>
-        </div>
+        )}
 
-        <div className="form-row" style={{ marginBottom: 20 }}>
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label>Entity Resolution</label>
-            <div className="checkbox-group mt-16" style={{ marginTop: 8 }}>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={useLlmRes}
-                  onChange={(e) => setUseLlmRes(e.target.checked)}
-                />
-                🤖 Use LLM Verification
-              </label>
-            </div>
-            <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 8 }}>
-              Unchecking this skips the LLM deduplication check (faster, but less accurate).
+        {pipelineType === "custom" && (
+          <div className="form-row" style={{ marginBottom: 20 }}>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label>Entity Resolution</label>
+              <div className="checkbox-group mt-16" style={{ marginTop: 8 }}>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={useLlmRes}
+                    onChange={(e) => setUseLlmRes(e.target.checked)}
+                  />
+                  🤖 Use LLM Verification
+                </label>
+              </div>
+              <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 8 }}>
+                Unchecking this skips the LLM deduplication check (faster, but less accurate).
+              </div>
             </div>
           </div>
-        </div>
+        )}
+
+        {pipelineType === "ms-graphrag" && (
+          <div style={{
+            padding: "14px 16px",
+            backgroundColor: "rgba(99, 102, 241, 0.08)",
+            borderRadius: "8px",
+            border: "1px solid rgba(99, 102, 241, 0.2)",
+            marginBottom: 20,
+            fontSize: 13,
+            lineHeight: 1.6,
+            color: "var(--text-dim)"
+          }}>
+            <div style={{ fontWeight: 600, marginBottom: 6, color: "var(--text)" }}>
+              🔬 Microsoft GraphRAG
+            </div>
+            The Microsoft GraphRAG library handles chunking, entity extraction, community detection,
+            and summarization internally using its own pipeline. Configuration options above
+            (chunk size, overlap, entity resolution) are not applicable.
+            <br /><br />
+            Output will be stored as parquet files and can be queried using
+            <strong> ms-graphrag-global</strong> and <strong>ms-graphrag-local</strong> retrievers
+            in the Evaluation page.
+          </div>
+        )}
 
         {/* Summary pill */}
         {selectedDoc && (
           <div className="stat-row" style={{ marginBottom: 16 }}>
             <div className="stat-pill">📄 <span>{selectedDoc.name}</span></div>
             <div className="stat-pill">🤖 <span>{provider} / {model}</span></div>
-            <div className="stat-pill">🧬 <span>{embeddingModel}</span></div>
-            <div className="stat-pill">✂️ <span>{chunker} · {chunkSize}t · {overlap}o</span></div>
+            <div className="stat-pill">🔧 <span>{pipelineType === "ms-graphrag" ? "Microsoft GraphRAG" : "Custom (Neo4j)"}</span></div>
+            {pipelineType === "custom" && (
+              <>
+                <div className="stat-pill">🧬 <span>{embeddingModel}</span></div>
+                <div className="stat-pill">✂️ <span>{chunker} · {chunkSize}t · {overlap}o</span></div>
+              </>
+            )}
           </div>
         )}
 
@@ -320,7 +367,7 @@ export default function Pipeline() {
                 Running…
               </>
             ) : (
-              <> ▶ Run Graph Generation</>
+              <> ▶ Run {pipelineType === "ms-graphrag" ? "Microsoft GraphRAG" : "Graph Generation"}</>
             )}
           </button>
 

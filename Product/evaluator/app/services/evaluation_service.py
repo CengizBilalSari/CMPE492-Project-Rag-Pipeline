@@ -174,7 +174,7 @@ def start_evaluation_job(
             with conn.cursor() as cur:
                 cur.execute(
                     """
-                    SELECT c.chat_id, c.embedding_model 
+                    SELECT c.chat_id, c.embedding_model, j.document_id
                     FROM evaluation_jobs j 
                     JOIN chats c ON j.chat_id = c.chat_id 
                     WHERE j.id = %s
@@ -192,6 +192,8 @@ def start_evaluation_job(
             llm_provider=llm_provider,
             llm_model=llm_model,
             embedding_model=embedding_model,
+            chat_id=job_row["chat_id"] if job_row else "",
+            document_id=job_row["document_id"] if job_row and job_row["document_id"] else "",
         )
         evaluator = RAGEvaluator(
             search_client=search_client,
