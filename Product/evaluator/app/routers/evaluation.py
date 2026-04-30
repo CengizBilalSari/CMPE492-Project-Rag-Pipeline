@@ -120,6 +120,8 @@ async def start_evaluation(
         search_types=types_list,
         question_source=question_source,
         document_id=doc_id,
+        provider=llm_provider,
+        model=llm_model,
     )
 
     background_tasks.add_task(

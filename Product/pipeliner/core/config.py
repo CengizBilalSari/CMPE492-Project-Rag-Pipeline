@@ -65,7 +65,7 @@ class LLMConfig(BaseModel):
     provider: LLMProvider = LLMProvider.OPENAI
     model: str = "gpt-4o-mini"
     temperature: float = 0.0
-    max_tokens: int = 4096
+    max_tokens: int = 16284
 
     @model_validator(mode="after")
     def validate_model_for_provider(self) -> "LLMConfig":

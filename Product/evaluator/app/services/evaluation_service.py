@@ -28,6 +28,8 @@ def create_job(
     search_types: List[str],
     question_source: str,
     document_id: Optional[str] = None,
+    provider: str = "openai",
+    model: str = "gpt-4o-mini",
 ) -> str:
     """Insert a new evaluation_jobs row and return its id."""
     job_id = str(uuid.uuid4())
@@ -35,10 +37,10 @@ def create_job(
         with conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO evaluation_jobs (id, chat_id, search_types, question_source, document_id, status)
-                VALUES (%s, %s, %s, %s, %s, 'pending')
+                INSERT INTO evaluation_jobs (id, chat_id, search_types, question_source, document_id, status, provider, model)
+                VALUES (%s, %s, %s, %s, %s, 'pending', %s, %s)
                 """,
-                (job_id, chat_id, search_types, question_source, document_id),
+                (job_id, chat_id, search_types, question_source, document_id, provider, model),
             )
         conn.commit()
     return job_id

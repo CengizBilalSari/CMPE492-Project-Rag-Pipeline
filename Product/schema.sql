@@ -57,6 +57,8 @@ CREATE TABLE IF NOT EXISTS evaluation_jobs (
   status          TEXT NOT NULL DEFAULT 'pending',
   progress        TEXT,
   error           TEXT,
+  provider        TEXT,
+  model           TEXT,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   completed_at    TIMESTAMPTZ
 );
