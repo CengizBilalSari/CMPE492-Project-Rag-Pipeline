@@ -280,28 +280,24 @@ class GraphRAGSearchClient:
         """Baseline RAG: simple vector similarity over chunks, no graph algorithms."""
         qemb = (await embed_fn([question]))[0]
 
-        # Fetch all chunks and find most similar by embedding entity mentions
+        # Fetch top 10 most similar chunks directly using Neo4j vector math
         records, _, _ = driver.execute_query(
             """
             MATCH (c:Chunk)
+            WHERE c.text_embedding IS NOT NULL
+            WITH c, gds.similarity.cosine(c.text_embedding, $qemb) AS score
+            ORDER BY score DESC
+            LIMIT 10
             RETURN c.text AS text
-            LIMIT 100
             """,
+            qemb=qemb,
             database_=self._neo4j_database,
         )
-        chunk_texts = [r["text"] for r in records if r["text"]]
+        contexts = [r["text"] for r in records if r["text"]]
 
-        if not chunk_texts:
+        if not contexts:
             answer = await llm.ainvoke(question)
             return answer, []
-
-        chunk_embeddings = await embed_fn(chunk_texts)
-        emb = np.array(chunk_embeddings)
-        q_norm = np.array(qemb) / (np.linalg.norm(qemb) + 1e-9)
-        norms = np.linalg.norm(emb, axis=1, keepdims=True) + 1e-9
-        scores = (emb / norms) @ q_norm
-        top_idx = np.argsort(scores)[::-1][:10]
-        contexts = [chunk_texts[i] for i in top_idx]
 
         context_str = "\n\n".join([f"--- Chunk {i+1} ---\n{c}" for i, c in enumerate(contexts)])
         prompt = (

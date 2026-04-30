@@ -201,6 +201,15 @@ class GraphRAGNeo4jWriter:
                 )
         logger.info("Wrote text_embedding for %d entities.", len(name_to_embedding))
 
+    def write_chunk_embeddings(self, id_to_embedding: dict[str, list[float]]) -> None:
+        with self.driver.session(database=self.database) as session:
+            for chunk_id, emb in id_to_embedding.items():
+                session.run(
+                    "MATCH (c:Chunk {id: $chunk_id}) SET c.text_embedding = $emb",
+                    chunk_id=chunk_id, emb=emb,
+                )
+        logger.info("Wrote text_embedding for %d chunks.", len(id_to_embedding))
+
     def clear_database(self) -> None:
         with self.driver.session(database=self.database) as session:
             session.run("MATCH (n) DETACH DELETE n")
