@@ -120,6 +120,13 @@ export async function getPipelineConfig() {
 
 // ── Evaluation ──────────────────────────────────────
 
+/** Fetch available LLM providers and their models from the evaluator backend. */
+export async function getEvaluateConfig() {
+  const res = await fetch(`${EVALUATOR_BASE}/evaluate/config`);
+  if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
+  return res.json();
+}
+
 export async function generateQuestions(provider, model, docId, numQuestions, onProgress) {
   const form = new FormData();
   form.append("llm_provider", provider || "openai");
