@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { startEvaluation, getEvalStatus, getEvalResults, getEvalDetails, getDocuments, generateQuestions, getEvaluationJobs, getEvaluationJobDetails } from "../api";
+import { startEvaluation, getEvalStatus, getEvalResults, getEvalDetails, getDocuments, generateQuestions, getEvaluationJobs, getEvaluationJobDetails, getEvaluateConfig } from "../api";
 import { exportEvalResults } from "../utils/exportCsv";
 import {
   Chart as ChartJS,
@@ -17,20 +17,10 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 const SEARCH_TYPES = ["global", "local", "ppr", "rag", "no-retriever", "ms-graphrag-global", "ms-graphrag-local"];
 
 const PROVIDERS = ["openai", "lmstudio", "ollama"];
-const MODELS = {
+const DEFAULT_MODELS = {
   openai: ["gpt-4o-mini", "gpt-4o"],
-  lmstudio: [
-    "deepseek/deepseek-r1-0528-qwen3-8b",
-    "llama-3-22b-instruct-v0.1",
-    "google/gemma-4-31b",
-  ],
-  ollama: [
-    "llama3:latest",
-    "mistral:latest",
-    "phi3:latest",
-    "gemma:latest",
-    "qwen2:latest"
-  ]
+  lmstudio: ["deepseek/deepseek-r1-0528-qwen3-8b", "llama-3-22b-instruct-v0.1", "google/gemma-4-31b"],
+  ollama: ["llama3:latest", "mistral:latest", "phi3:latest", "gemma:latest", "qwen2:latest"],
 };
 
 const CHART_COLORS = [
@@ -129,6 +119,7 @@ export default function Evaluation() {
   const [docId, setDocId] = useState("");
   const [provider, setProvider] = useState("openai");
   const [model, setModel] = useState("gpt-4o-mini");
+  const [availableModels, setAvailableModels] = useState(DEFAULT_MODELS);
   const [jobId, setJobId] = useState(null);
   const [status, setStatus] = useState(null);
   const [progressMsg, setProgressMsg] = useState("");
@@ -172,6 +163,11 @@ export default function Evaluation() {
     getEvaluationJobs().then(jobs => {
       setAllPastJobs(jobs);
     });
+    getEvaluateConfig().then((cfg) => {
+      if (cfg?.llm_providers) {
+        setAvailableModels((prev) => ({ ...prev, ...cfg.llm_providers }));
+      }
+    }).catch(() => {});
   }, []);
 
   // Update selected past job when document or jobs change
@@ -197,7 +193,10 @@ export default function Evaluation() {
     );
   }
 
-  useEffect(() => { setModel(MODELS[provider][0]); }, [provider]);
+  useEffect(() => {
+    const list = availableModels[provider];
+    if (list?.length) setModel(list[0]);
+  }, [provider, availableModels]);
 
   async function start() {
     if (!selected.length) return;
@@ -387,7 +386,7 @@ export default function Evaluation() {
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label>Model</label>
             <select value={model} onChange={(e) => setModel(e.target.value)}>
-              {MODELS[provider].map((m) => (
+              {(availableModels[provider] ?? []).map((m) => (
                 <option key={m}>{m}</option>
               ))}
             </select>

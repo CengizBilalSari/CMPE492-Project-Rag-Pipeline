@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 import json
 import logging
+import os
 from typing import List, Optional
 
 import queue
@@ -22,6 +23,52 @@ from app.services.db import connection, read_document_bytes
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/evaluate", tags=["evaluation"])
+
+_LMSTUDIO_BASE_URL = os.getenv("LMSTUDIO_BASE_URL", "http://localhost:1234/v1")
+_OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434/v1")
+
+_OPENAI_MODELS = ["gpt-4o-mini", "gpt-4o"]
+_LMSTUDIO_MODELS = ["deepseek/deepseek-r1-0528-qwen3-8b", "llama-3-22b-instruct-v0.1", "google/gemma-4-31b"]
+_OLLAMA_MODELS = ["llama3:latest", "mistral:latest", "phi3:latest", "gemma:latest", "qwen2:latest"]
+
+
+@router.get("/config")
+async def get_evaluate_config():
+    """Return available LLM providers and their models, fetching LMStudio/Ollama dynamically."""
+    import httpx
+
+    lmstudio_models = list(_LMSTUDIO_MODELS)
+    ollama_models = list(_OLLAMA_MODELS)
+
+    async with httpx.AsyncClient(timeout=2.0) as client:
+        try:
+            resp = await client.get(f"{_LMSTUDIO_BASE_URL.rstrip('/')}/models")
+            if resp.status_code == 200:
+                data = resp.json()
+                fetched = [m["id"] for m in data.get("data", [])]
+                if fetched:
+                    lmstudio_models = fetched
+        except Exception as e:
+            logger.warning("Could not fetch LMStudio models dynamically: %s", e)
+
+        try:
+            base_url = _OLLAMA_BASE_URL.split("/v1")[0].rstrip("/")
+            resp = await client.get(f"{base_url}/api/tags")
+            if resp.status_code == 200:
+                data = resp.json()
+                fetched = [m.get("name") for m in (data.get("models") or []) if m.get("name")]
+                if fetched:
+                    ollama_models = fetched
+        except Exception as e:
+            logger.warning("Could not fetch Ollama models dynamically: %s", e)
+
+    return {
+        "llm_providers": {
+            "openai": _OPENAI_MODELS,
+            "lmstudio": lmstudio_models,
+            "ollama": ollama_models,
+        }
+    }
 
 
 def _extract_text(file_bytes: bytes, content_type: str) -> str:

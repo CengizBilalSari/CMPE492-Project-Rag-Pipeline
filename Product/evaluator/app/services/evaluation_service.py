@@ -199,8 +199,8 @@ def start_evaluation_job(
         )
         evaluator = RAGEvaluator(
             search_client=search_client,
-            judge_provider=llm_provider,
-            judge_model=llm_model,
+            judge_provider="openai",
+            judge_model="gpt-4o-mini",
         )
 
         for st in search_types:
