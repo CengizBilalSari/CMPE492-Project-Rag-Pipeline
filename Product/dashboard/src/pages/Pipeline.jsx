@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { connectPipeline, getDocuments, getPipelineConfig } from "../api";
+import { connectPipeline, getDocuments, getPipelineConfig, getOllamaRecommendations, pullOllamaModel } from "../api";
 
 // Fallbacks used until the API response arrives
 const DEFAULT_PROVIDERS = ["openai", "lmstudio", "ollama"];
@@ -80,6 +80,47 @@ export default function Pipeline() {
   const [llmProviders, setLlmProviders] = useState(DEFAULT_MODELS);
   const [embeddingModels, setEmbeddingModels] = useState(DEFAULT_EMBEDDING_MODELS);
   const [chunkers, setChunkers] = useState(DEFAULT_CHUNKERS);
+
+  // Ollama Model Manager State
+  const [showOllamaModal, setShowOllamaModal] = useState(false);
+  const [ollamaRecs, setOllamaRecs] = useState(null);
+  const [pullingModel, setPullingModel] = useState(null);
+  const [pullProgress, setPullProgress] = useState("");
+  const [userRam, setUserRam] = useState(16); // Default selection
+
+  useEffect(() => {
+    if (showOllamaModal && !ollamaRecs) {
+      getOllamaRecommendations().then(setOllamaRecs).catch(console.error);
+    }
+  }, [showOllamaModal, ollamaRecs]);
+
+  async function handlePullModel(modelName) {
+    if (pullingModel) return;
+    setPullingModel(modelName);
+    setPullProgress("Starting download...");
+    try {
+      await pullOllamaModel(modelName, (event) => {
+         if (event.status) {
+           let p = event.status;
+           if (event.total && event.completed) {
+              const pct = Math.round((event.completed / event.total) * 100);
+              p += ` (${pct}%)`;
+           }
+           setPullProgress(p);
+         }
+      });
+      setPullProgress("Download complete!");
+      // Refresh models list in dropdown
+      const cfg = await getPipelineConfig();
+      if (cfg.llm_providers) setLlmProviders(cfg.llm_providers);
+      setTimeout(() => {
+         setPullingModel(null);
+      }, 1500);
+    } catch(e) {
+      setPullProgress("Error: " + e.message);
+      setTimeout(() => setPullingModel(null), 3000);
+    }
+  }
 
   useEffect(() => {
     getDocuments().then((d) => {
@@ -228,7 +269,19 @@ export default function Pipeline() {
 
         <div className="form-row">
           <div className="form-group">
-            <label>Model</label>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+              <label style={{ marginBottom: 0 }}>Model</label>
+              {provider === "ollama" && (
+                <button 
+                  className="btn btn-outline" 
+                  style={{ padding: "2px 8px", fontSize: "11px" }}
+                  onClick={() => setShowOllamaModal(true)}
+                  disabled={running}
+                >
+                  📥 Manage Models
+                </button>
+              )}
+            </div>
             <select value={model} onChange={(e) => setModel(e.target.value)}>
               {(MODELS[provider] || []).map((m) => (
                 <option key={m}>{m}</option>
@@ -452,6 +505,92 @@ export default function Pipeline() {
               </div>
             )}
             <div ref={logEndRef} />
+          </div>
+        </div>
+      )}
+
+      {/* Ollama Model Manager Modal */}
+      {showOllamaModal && (
+        <div className="modal-overlay" style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1000,
+          display: "flex", alignItems: "center", justifyContent: "center"
+        }}>
+          <div className="modal-content card" style={{ width: 600, maxWidth: "90%", maxHeight: "90vh", overflowY: "auto", padding: 24 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+              <div>
+                <h3 style={{ margin: "0 0 8px 0" }}>📥 Ollama Model Manager</h3>
+                <div style={{ fontSize: 13, color: "var(--text-dim)", display: "flex", alignItems: "center", gap: 8 }}>
+                  <span>My Mac's Unified Memory:</span>
+                  <select 
+                    value={userRam} 
+                    onChange={(e) => setUserRam(Number(e.target.value))}
+                    style={{ padding: "2px 8px", fontSize: 12, borderRadius: 4 }}
+                  >
+                    <option value={8}>8 GB</option>
+                    <option value={16}>16 GB</option>
+                    <option value={32}>32 GB+</option>
+                  </select>
+                </div>
+              </div>
+              <button className="btn btn-outline" onClick={() => setShowOllamaModal(false)} disabled={!!pullingModel}>✕</button>
+            </div>
+
+            {ollamaRecs && ollamaRecs.tiers.map((tier) => {
+              const isRecommended = userRam >= tier.min_ram_gb && userRam < tier.max_ram_gb;
+              return (
+              <div key={tier.id} style={{
+                marginBottom: 16,
+                padding: 16,
+                borderRadius: 8,
+                border: isRecommended ? "2px solid var(--accent)" : "1px solid var(--border)",
+                backgroundColor: isRecommended ? "rgba(99, 102, 241, 0.05)" : "transparent"
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <h4 style={{ margin: 0 }}>{tier.name}</h4>
+                  {isRecommended && <span style={{ fontSize: 11, fontWeight: "bold", color: "var(--accent)", backgroundColor: "rgba(99, 102, 241, 0.1)", padding: "2px 8px", borderRadius: 12 }}>⭐ Recommended for {userRam}GB</span>}
+                </div>
+                <div style={{ fontSize: 13, color: "var(--text-dim)", marginBottom: 12 }}>{tier.description}</div>
+                
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {tier.models.map((m) => {
+                    const baseName = m.name.split(":")[0];
+                    const isDownloaded = MODELS["ollama"]?.some(installed => installed.split(":")[0] === baseName);
+                    const isPulling = pullingModel === m.name;
+                    return (
+                      <div key={m.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", backgroundColor: "var(--bg-subtle)", borderRadius: 6 }}>
+                        <div>
+                          <div style={{ fontWeight: 500, fontSize: 14 }}>{m.name} <span style={{ fontSize: 11, color: "var(--text-dim)", marginLeft: 8 }}>{m.size}</span></div>
+                          <div style={{ fontSize: 12, color: "var(--text-dim)" }}>{m.desc}</div>
+                        </div>
+                        <div style={{ textAlign: "right", minWidth: 120 }}>
+                          {isDownloaded ? (
+                            <span style={{ fontSize: 12, color: "var(--green)", fontWeight: 500 }}>✔ Downloaded</span>
+                          ) : isPulling ? (
+                            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
+                              <span style={{ fontSize: 12, fontWeight: 500, color: "var(--accent)" }}>Downloading...</span>
+                              <span style={{ fontSize: 11, color: "var(--text-dim)", fontFamily: "monospace", whiteSpace: "nowrap" }}>{pullProgress}</span>
+                            </div>
+                          ) : (
+                            <button 
+                              className="btn btn-primary" 
+                              style={{ padding: "4px 12px", fontSize: 12 }}
+                              disabled={!!pullingModel}
+                              onClick={() => handlePullModel(m.name)}
+                            >
+                              ⬇ Download
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              );
+            })}
+
+
           </div>
         </div>
       )}

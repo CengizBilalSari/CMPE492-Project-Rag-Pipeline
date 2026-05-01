@@ -249,3 +249,46 @@ export async function getEvaluationJobDetails(jobId) {
   if (!res.ok) return null;
   return res.json();
 }
+
+// ── Ollama Models ───────────────────────────────────────
+
+export async function getOllamaRecommendations() {
+  const res = await fetch(`${PIPELINER_BASE}/api/ollama/recommendations`);
+  if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
+  return res.json();
+}
+
+export async function pullOllamaModel(model, onProgress) {
+  const res = await fetch(`${PIPELINER_BASE}/api/ollama/pull`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model }),
+  });
+  
+  if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
+  
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop();
+
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      try {
+        const event = JSON.parse(line);
+        if (event.error) throw new Error(event.error);
+        if (onProgress) onProgress(event);
+      } catch (e) {
+        if (e.message && e.message !== "Unexpected end of JSON input") throw e;
+      }
+    }
+  }
+}
+
