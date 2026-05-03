@@ -365,6 +365,45 @@ export default function Evaluation() {
         )}
       </div>
 
+      {/* Retriever Knowledge Base */}
+      <div className="card" style={{ background: "linear-gradient(135deg, rgba(139, 92, 246, 0.05), rgba(34, 211, 238, 0.03))", borderColor: "rgba(139, 92, 246, 0.2)" }}>
+        <div className="card-header">
+          <div className="card-icon" style={{ background: "var(--accent)", color: "#fff" }}>💡</div>
+          <div>
+            <h3 style={{ color: "var(--accent)" }}>Retriever Knowledge Base</h3>
+            <div className="card-subtitle">How our graph-based search engines work</div>
+          </div>
+        </div>
+        <div className="form-row" style={{ gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+          <div style={{ padding: "12px", background: "rgba(0,0,0,0.2)", borderRadius: "8px", border: "1px solid var(--border)" }}>
+            <h4 style={{ fontSize: "13px", color: "var(--cyan)", marginBottom: "8px", display: "flex", alignItems: "center", gap: "6px" }}>
+              <span>🌍</span> Global Search (Map-Reduce)
+            </h4>
+            <p style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: "1.5" }}>
+              Best for <strong>holistic questions</strong> about the entire dataset. It aggregates "Community Reports" from multiple levels of the graph hierarchy.
+            </p>
+            <ul style={{ fontSize: "11px", color: "var(--text-dim)", marginTop: "8px", paddingLeft: "16px" }}>
+              <li>Summarizes high-level themes</li>
+              <li>Uses Map-Reduce to combine multiple perspectives</li>
+              <li>Focuses on broad semantic clusters</li>
+            </ul>
+          </div>
+          <div style={{ padding: "12px", background: "rgba(0,0,0,0.2)", borderRadius: "8px", border: "1px solid var(--border)" }}>
+            <h4 style={{ fontSize: "13px", color: "var(--accent)", marginBottom: "8px", display: "flex", alignItems: "center", gap: "6px" }}>
+              <span>📍</span> Local Search (Entity-Centric)
+            </h4>
+            <p style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: "1.5" }}>
+              Best for <strong>specific questions</strong> about entities or relationships. It builds a subgraph starting from the most relevant entities.
+            </p>
+            <ul style={{ fontSize: "11px", color: "var(--text-dim)", marginTop: "8px", paddingLeft: "16px" }}>
+              <li>Extracts specific facts and connections</li>
+              <li>Combines vector search with graph traversal</li>
+              <li>Uses raw text units for high precision</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
       {/* Language Model */}
       <div className="card">
         <div className="card-header">
@@ -761,6 +800,76 @@ export default function Evaluation() {
                             {d.rag_answer}
                           </div>
                         </details>
+                      )}
+
+                      {d.retrieved_contexts && d.retrieved_contexts.length > 0 && (
+                        <div className="modal-section" style={{ marginTop: 16 }}>
+                          <h5 style={{ fontSize: 13, marginBottom: 12, color: "var(--cyan)", display: "flex", alignItems: "center", gap: 8 }}>
+                            <span>🔍 Retrieved Knowledge / Graph Parts</span>
+                          </h5>
+                          <div className="insight-container">
+                            {d.retrieved_contexts.map((ctx, idx) => {
+                              const isGlobal = (d.search_type || "").toLowerCase().includes('global');
+                              const isSource = typeof ctx === 'string' && ctx.toLowerCase().includes('source text passages:');
+                              const isRel = typeof ctx === 'string' && ctx.toLowerCase().includes('relationships:') && !isGlobal;
+                              const isEntity = typeof ctx === 'string' && ctx.toLowerCase().includes('seed entities:');
+                              
+                              let label = isEntity ? 'Seed Entities' : isRel ? 'Relationships' : isSource ? 'Source Text Chunks' : 'Context Part';
+                              let icon = isEntity ? '👤' : isRel ? '🔗' : isSource ? '📄' : '💡';
+
+                              if (isGlobal || (!isEntity && !isRel && !isSource)) {
+                                label = `Community Report #${idx + 1}`;
+                                icon = '🏘️';
+                              }
+                              
+                              const items = typeof ctx === 'string' 
+                                ? ctx.split(isSource ? /(?=--- Chunk)/g : /\n/g).map(s => s.trim()).filter(Boolean)
+                                : [ctx];
+
+                              // Remove the first line if it's just the header we already matched
+                              const displayItems = items.filter(it => !it.toLowerCase().startsWith('seed entities:') && !it.toLowerCase().startsWith('relationships:') && !it.toLowerCase().startsWith('source text passages:'));
+
+                              return (
+                                <details key={idx} className="insight-group-details" style={{ marginBottom: 12, border: "1px solid rgba(255,255,255,0.05)", borderRadius: 8, overflow: "hidden" }}>
+                                  <summary style={{ 
+                                    padding: "10px 14px", 
+                                    background: "rgba(255,255,255,0.02)", 
+                                    cursor: "pointer", 
+                                    fontSize: 12, 
+                                    fontWeight: 600, 
+                                    color: "var(--text-muted)",
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center"
+                                  }}>
+                                    <span>{icon} {label}</span>
+                                    <span style={{ fontSize: 10, opacity: 0.6 }}>{displayItems.length} items</span>
+                                  </summary>
+                                  <div className="insight-group" style={{ padding: 12, background: "rgba(0,0,0,0.2)" }}>
+                                    {displayItems.map((item, itemIdx) => {
+                                      const parts = typeof item === 'string' && item.includes('|') ? item.split('|').map(p => p.trim()) : null;
+                                      return (
+                                        <div key={itemIdx} className="insight-node" style={{ marginBottom: 8 }}>
+                                          {parts ? (
+                                            <div className="graph-parts-viz">
+                                              {parts.map((p, i) => (
+                                                <span key={i} className="graph-part">{p}</span>
+                                              ))}
+                                            </div>
+                                          ) : (
+                                            <div style={{ fontStyle: typeof item === 'string' && item.startsWith('---') ? 'normal' : 'italic', whiteSpace: 'pre-wrap' }}>
+                                              {item}
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </details>
+                              );
+                            })}
+                          </div>
+                        </div>
                       )}
                     </div>
                   ))}

@@ -290,6 +290,7 @@ def get_detailed_results(job_id: str) -> List[Dict[str, Any]]:
                     qp.ground_truth_answer,
                     qe.rag_answer,
                     qe.rag_reasoning,
+                    qe.retrieved_contexts,
                     qe.answer_correctness_score,
                     qe.answer_correctness_reason,
                     qe.context_relevance_score,
