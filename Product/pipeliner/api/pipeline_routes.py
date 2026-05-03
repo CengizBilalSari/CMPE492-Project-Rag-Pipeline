@@ -6,6 +6,7 @@ import logging
 import traceback
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from pydantic import BaseModel
 
 from core.config import (
     PipelineConfig,
@@ -184,3 +185,73 @@ async def run_pipeline(ws: WebSocket):
             await ws.close()
         except Exception:
             pass
+
+class PullRequest(BaseModel):
+    model: str
+
+@router.get("/api/ollama/recommendations")
+async def get_ollama_recommendations():
+    tiers = [
+        {
+            "id": "tier1",
+            "name": "Tier 1: Lightweight",
+            "description": "Best for <8GB RAM or older machines. Fast but lower reasoning.",
+            "min_ram_gb": 0,
+            "max_ram_gb": 12,
+            "models": [
+                {"name": "phi3:mini", "size": "3.8B", "desc": "Good at following strict instructions."},
+                {"name": "llama3.2:3b", "size": "3B", "desc": "Lightweight Llama model, surprisingly smart."},
+                {"name": "gemma2:2b", "size": "2B", "desc": "Google's small powerhouse for basic tasks."},
+                {"name": "qwen2.5:1.5b", "size": "1.5B", "desc": "Extremely fast, good for low-end hardware."}
+            ]
+        },
+        {
+            "id": "tier2",
+            "name": "Tier 2: Balanced",
+            "description": "Best for 16GB RAM. The gold standard for local GraphRAG.",
+            "min_ram_gb": 12,
+            "max_ram_gb": 24,
+            "models": [
+                {"name": "llama3.1:latest", "size": "8B", "desc": "Excellent local extraction and reasoning."},
+                {"name": "llama3:latest", "size": "8B", "desc": "Classic Llama 3 8B model."},
+                {"name": "qwen2.5:7b", "size": "7B", "desc": "Incredible reasoning and coding capabilities."},
+                {"name": "mistral-nemo:latest", "size": "12B", "desc": "Massive 128k context window, great for graphs."},
+                {"name": "gemma2:9b", "size": "9B", "desc": "Punches above its weight class in logic."},
+                {"name": "mistral:latest", "size": "7B", "desc": "Solid alternative to Llama 3."}
+            ]
+        },
+        {
+            "id": "tier3",
+            "name": "Tier 3: Heavyweight",
+            "description": "Best for 32GB+ RAM. Ultimate local quality.",
+            "min_ram_gb": 24,
+            "max_ram_gb": 999,
+            "models": [
+                {"name": "qwen2.5:32b", "size": "32B", "desc": "Near GPT-4 performance for local GraphRAG."},
+                {"name": "command-r:latest", "size": "35B", "desc": "Optimized specifically for RAG workflows."},
+                {"name": "mixtral:8x7b", "size": "47B", "desc": "Fast Mixture of Experts model."},
+                {"name": "llama3.1:70b", "size": "70B", "desc": "Requires heavy hardware but unmatched quality."}
+            ]
+        }
+    ]
+            
+    return {"tiers": tiers}
+
+@router.post("/api/ollama/pull")
+async def pull_ollama_model(req: PullRequest):
+    import httpx
+    from fastapi.responses import StreamingResponse
+    
+    base_url = OLLAMA_BASE_URL.split("/v1")[0].rstrip("/")
+    
+    async def stream_pull():
+        try:
+            async with httpx.AsyncClient(timeout=None) as client:
+                async with client.stream("POST", f"{base_url}/api/pull", json={"name": req.model}) as r:
+                    async for chunk in r.aiter_bytes():
+                        yield chunk
+        except Exception as e:
+            yield f'{{"error":"{str(e)}"}}\n'.encode("utf-8")
+                    
+    return StreamingResponse(stream_pull(), media_type="application/x-ndjson")
+
