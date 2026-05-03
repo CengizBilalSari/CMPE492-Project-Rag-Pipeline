@@ -501,6 +501,73 @@ export default function History() {
                                       </div>
                                     </details>
                                   )}
+
+                                  {e.retrieved_contexts && e.retrieved_contexts.length > 0 && (
+                                    <details style={{ fontSize: 11, marginTop: 4 }}>
+                                      <summary style={{ cursor: "pointer", color: "var(--cyan)" }}>🔍 Retrieved Knowledge / Graph Parts</summary>
+                                       <div className="insight-container" style={{ marginTop: 8 }}>
+                                         {e.retrieved_contexts.map((ctx, idx) => {
+                                           const isGlobal = (e.search_type || "").toLowerCase().includes('global');
+                                           const isSource = typeof ctx === 'string' && ctx.toLowerCase().includes('source text passages:');
+                                           const isRel = typeof ctx === 'string' && ctx.toLowerCase().includes('relationships:') && !isGlobal;
+                                           const isEntity = typeof ctx === 'string' && ctx.toLowerCase().includes('seed entities:');
+                                           
+                                           let label = isEntity ? 'Seed Entities' : isRel ? 'Relationships' : isSource ? 'Source Text Chunks' : 'Context Part';
+                                           let icon = isEntity ? '👤' : isRel ? '🔗' : isSource ? '📄' : '💡';
+
+                                           if (isGlobal || (!isEntity && !isRel && !isSource)) {
+                                             label = `Community Report #${idx + 1}`;
+                                             icon = '🏘️';
+                                           }
+
+                                           const items = typeof ctx === 'string' 
+                                             ? ctx.split(isSource ? /(?=--- Chunk)/g : /\n/g).map(s => s.trim()).filter(Boolean)
+                                             : [ctx];
+                                           
+                                           const displayItems = items.filter(it => !it.toLowerCase().startsWith('seed entities:') && !it.toLowerCase().startsWith('relationships:') && !it.toLowerCase().startsWith('source text passages:'));
+
+                                           return (
+                                             <details key={idx} className="insight-group-details" style={{ marginBottom: 10, border: "1px solid rgba(255,255,255,0.05)", borderRadius: 6, overflow: "hidden" }}>
+                                               <summary style={{ 
+                                                 padding: "8px 12px", 
+                                                 background: "rgba(255,255,255,0.02)", 
+                                                 cursor: "pointer", 
+                                                 fontSize: 11, 
+                                                 fontWeight: 600, 
+                                                 color: "var(--text-muted)",
+                                                 display: "flex",
+                                                 justifyContent: "space-between",
+                                                 alignItems: "center"
+                                               }}>
+                                                 <span>{icon} {label}</span>
+                                                 <span style={{ fontSize: 9, opacity: 0.6 }}>{displayItems.length} items</span>
+                                               </summary>
+                                               <div className="insight-group" style={{ padding: 10, background: "rgba(0,0,0,0.15)" }}>
+                                                 {displayItems.map((item, itemIdx) => {
+                                                   const parts = typeof item === 'string' && item.includes('|') ? item.split('|').map(p => p.trim()) : null;
+                                                   return (
+                                                     <div key={itemIdx} className="insight-node" style={{ marginBottom: 6 }}>
+                                                       {parts ? (
+                                                         <div className="graph-parts-viz">
+                                                           {parts.map((p, i) => (
+                                                             <span key={i} className="graph-part">{p}</span>
+                                                           ))}
+                                                         </div>
+                                                       ) : (
+                                                         <div style={{ fontStyle: typeof item === 'string' && item.startsWith('---') ? 'normal' : 'italic', whiteSpace: 'pre-wrap' }}>
+                                                           {item}
+                                                         </div>
+                                                       )}
+                                                     </div>
+                                                   );
+                                                 })}
+                                               </div>
+                                             </details>
+                                           );
+                                         })}
+                                      </div>
+                                    </details>
+                                  )}
                                 </div>
                               ))}
                             </div>
