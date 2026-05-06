@@ -127,12 +127,15 @@ export async function getEvaluateConfig() {
   return res.json();
 }
 
-export async function generateQuestions(provider, model, docId, numQuestions, onProgress) {
+export async function generateQuestions(provider, model, docId, numQuestions, searchTypes, onProgress) {
   const form = new FormData();
   form.append("llm_provider", provider || "openai");
   form.append("llm_model", model || "gpt-4o");
   form.append("doc_id", docId);
   form.append("num_questions", numQuestions);
+  if (searchTypes && searchTypes.length) {
+    form.append("search_types", searchTypes.join(","));
+  }
 
   const res = await fetch(`${EVALUATOR_BASE}/evaluate/generate-questions`, {
     method: "POST",
