@@ -80,6 +80,7 @@ export default function Pipeline() {
   const [completedSteps, setCompletedSteps] = useState(new Set());
   const [stepDetails, setStepDetails] = useState({});  // { stepIdx: ["detail msg", ...] }
   const [expandedSteps, setExpandedSteps] = useState(new Set());
+  const [stepProgress, setStepProgress] = useState({});  // { stepIdx: { completed, total } }
   const wsRef = useRef(null);
   const logEndRef = useRef(null);
 
@@ -168,6 +169,7 @@ export default function Pipeline() {
     setCompletedSteps(new Set());
     setStepDetails({});
     setExpandedSteps(new Set());
+    setStepProgress({});
     pushLog("Connecting to pipeline…", "log-dim");
 
     const payload = {
@@ -203,6 +205,24 @@ export default function Pipeline() {
             setStepDetails((prev) => ({
               ...prev,
               [stepIdx]: [...(prev[stepIdx] || []), detailMsg],
+            }));
+          }
+          return;
+        }
+
+        // Handle progress messages — update step percentage
+        if (text.startsWith("progress:")) {
+          // format: "progress:extract:12/50"
+          const rest = text.slice(9); // "extract:12/50"
+          const colonIdx = rest.indexOf(":");
+          const stepKey = rest.slice(0, colonIdx);
+          const fraction = rest.slice(colonIdx + 1); // "12/50"
+          const [comp, tot] = fraction.split("/").map(Number);
+          const stepIdx = DETAIL_STEP_MAP[stepKey];
+          if (stepIdx !== undefined && !isNaN(comp) && !isNaN(tot)) {
+            setStepProgress((prev) => ({
+              ...prev,
+              [stepIdx]: { completed: comp, total: tot },
             }));
           }
           return;
@@ -486,13 +506,20 @@ export default function Pipeline() {
               const details = stepDetails[idx] || [];
               const isExpanded = expandedSteps.has(idx);
               const hasDetails = details.length > 0;
+              const prog = stepProgress[idx];
+              const pct = prog ? Math.round((prog.completed / prog.total) * 100) : null;
               return (
                 <div key={step.id} className={`step-item ${cls}`}>
                   <div className="step-main-row">
                     <div className="step-bullet">
                       {isDone ? "✓" : isActive ? "⚙" : idx + 1}
                     </div>
-                    <div className="step-label">{step.label}</div>
+                    <div className="step-label">
+                      {step.label}
+                      {isActive && pct !== null && (
+                        <span className="step-pct">{prog.completed}/{prog.total} ({pct}%)</span>
+                      )}
+                    </div>
                     {hasDetails && (
                       <button
                         className={`step-details-toggle ${isExpanded ? "expanded" : ""}`}
@@ -510,10 +537,15 @@ export default function Pipeline() {
                         Details
                       </button>
                     )}
-                    {isActive && !hasDetails && (
+                    {isActive && !hasDetails && pct === null && (
                       <span className="step-working-indicator">working…</span>
                     )}
                   </div>
+                  {isActive && pct !== null && (
+                    <div className="step-progress-bar">
+                      <div className="step-progress-fill" style={{ width: `${pct}%` }} />
+                    </div>
+                  )}
                   {isExpanded && hasDetails && (
                     <div className="step-details-panel">
                       {details.map((d, i) => (

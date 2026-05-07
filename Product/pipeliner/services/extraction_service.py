@@ -71,10 +71,18 @@ class EntityRelationshipExtractor:
         self, chunks: list[str], progress_callback=None,
     ) -> list[ExtractionResult]:
         sem = asyncio.Semaphore(self.max_concurrency)
-        tasks = [
-            self._extract_single(sem, idx, chunk)
-            for idx, chunk in enumerate(chunks)
-        ]
+        total = len(chunks)
+        completed_count = 0
+
+        async def _tracked(idx: int, chunk: str) -> ExtractionResult:
+            nonlocal completed_count
+            result = await self._extract_single(sem, idx, chunk)
+            completed_count += 1
+            if progress_callback:
+                progress_callback(completed_count, total, result)
+            return result
+
+        tasks = [_tracked(idx, chunk) for idx, chunk in enumerate(chunks)]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         extraction_results: list[ExtractionResult] = []

@@ -687,6 +687,32 @@ body {
   color: var(--accent);
 }
 
+/* ── Step Progress Bar & Percentage ──────────────────── */
+.step-pct {
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(139, 92, 246, 0.7);
+  font-family: var(--mono);
+}
+
+.step-progress-bar {
+  margin-top: 6px;
+  margin-left: 34px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.step-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--cyan));
+  border-radius: 2px;
+  transition: width 0.3s ease-out;
+  box-shadow: 0 0 8px rgba(139, 92, 246, 0.4);
+}
+
 /* ── Step Detail Panel ───────────────────────────────── */
 .step-main-row {
   display: flex;

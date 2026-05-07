@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import logging
 import time
@@ -180,16 +181,47 @@ class GraphRAGPipeline:
 
         chunk_ids = [u[0] for u in unextracted]
         chunk_texts = [u[1] for u in unextracted]
+        total = len(chunk_texts)
 
         yield f"detail:extract:Starting LLM extraction (concurrency={self.er_extractor.max_concurrency})..."
-        extraction_results = await self.er_extractor.extract_from_chunks_with_progress(
-            chunk_texts, progress_callback=lambda msg: None
+
+        # Use a queue so progress messages stream in real-time
+        progress_queue: asyncio.Queue = asyncio.Queue()
+
+        def on_chunk_done(completed: int, total: int, result):
+            e_count = len(result.entities)
+            r_count = len(result.relations)
+            pct = int(completed / total * 100)
+            progress_queue.put_nowait(
+                f"detail:extract:Chunk {result.chunk_index + 1}/{total} → "
+                f"{e_count} entities, {r_count} relations"
+            )
+            progress_queue.put_nowait(f"progress:extract:{completed}/{total}")
+
+        task = asyncio.create_task(
+            self.er_extractor.extract_from_chunks_with_progress(
+                chunk_texts, progress_callback=on_chunk_done,
+            )
         )
-        # Emit per-chunk details after extraction
-        for r in extraction_results:
-            e_count = len(r.entities)
-            r_count = len(r.relations)
-            yield f"detail:extract:Chunk {r.chunk_index + 1}/{len(chunk_texts)} → {e_count} entities, {r_count} relations"
+
+        # Yield progress messages as they arrive
+        completed = 0
+        while completed < total:
+            try:
+                msg = await asyncio.wait_for(progress_queue.get(), timeout=0.5)
+                yield msg
+                if msg.startswith("progress:"):
+                    completed = int(msg.rsplit("/", 1)[0].rsplit(":", 1)[1])
+            except asyncio.TimeoutError:
+                if task.done():
+                    break
+
+        # Drain any remaining messages
+        while not progress_queue.empty():
+            msg = progress_queue.get_nowait()
+            yield msg
+
+        extraction_results = await task
 
         yield f"detail:extract:Writing results to Neo4j..."
         self.writer.write_entities_and_relations(chunk_ids, extraction_results)
@@ -326,12 +358,38 @@ class GraphRAGPipeline:
             yield "Step 6/6: Summarization — skipped (all communities already summarized)."
             return
 
-        yield f"detail:summarize:Summarizing {len(communities_to_summarize)} communities (concurrency={self.config.extraction.max_concurrency})..."
-        summaries = await summarizer.summarize(communities_to_summarize)
-        # Emit per-community detail
-        for i, (comm_id, summary_text) in enumerate(summaries.items(), 1):
-            preview = (summary_text[:80] + "...") if len(summary_text) > 80 else summary_text
-            yield f"detail:summarize:Community {i}/{len(summaries)} summarized ({len(summary_text)} chars)"
+        total = len(communities_to_summarize)
+        yield f"detail:summarize:Summarizing {total} communities (concurrency={self.config.extraction.max_concurrency})..."
+
+        progress_queue: asyncio.Queue = asyncio.Queue()
+
+        def on_community_done(completed: int, total: int, comm_id: int):
+            progress_queue.put_nowait(
+                f"detail:summarize:Community {completed}/{total} summarized"
+            )
+            progress_queue.put_nowait(f"progress:summarize:{completed}/{total}")
+
+        task = asyncio.create_task(
+            summarizer.summarize(communities_to_summarize, progress_callback=on_community_done)
+        )
+
+        completed = 0
+        while completed < total:
+            try:
+                msg = await asyncio.wait_for(progress_queue.get(), timeout=0.5)
+                yield msg
+                if msg.startswith("progress:"):
+                    completed = int(msg.rsplit("/", 1)[0].rsplit(":", 1)[1])
+            except asyncio.TimeoutError:
+                if task.done():
+                    break
+
+        # Drain any remaining messages
+        while not progress_queue.empty():
+            msg = progress_queue.get_nowait()
+            yield msg
+
+        summaries = await task
         self.writer.write_community_summaries(summaries)
         self.step_times["6. Summarize Communities"] = time.time() - t0
         self.writer.update_document_status(doc_id, "COMPLETED")

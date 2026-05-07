@@ -182,12 +182,23 @@ class CommunitySummarizer:
         )
         return {int(r["id"]): r["names"] for r in records}
 
-    async def summarize(self, communities: dict[int, list[str]]) -> dict[int, str]:
+    async def summarize(
+        self, communities: dict[int, list[str]], progress_callback=None,
+    ) -> dict[int, str]:
         self.total_communities = len(communities)
         self.completed_summaries = 0
         sem = asyncio.Semaphore(self.max_concurrency)
+
+        async def _tracked(comm_id: int, entity_names: list[str]) -> str:
+            result = await self._summarize_community(sem, comm_id, entity_names)
+            if progress_callback:
+                progress_callback(
+                    self.completed_summaries, self.total_communities, comm_id,
+                )
+            return result
+
         tasks = {
-            comm_id: self._summarize_community(sem, comm_id, entity_names)
+            comm_id: _tracked(comm_id, entity_names)
             for comm_id, entity_names in communities.items()
         }
         results = await asyncio.gather(*tasks.values(), return_exceptions=True)
