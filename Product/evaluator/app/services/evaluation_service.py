@@ -177,8 +177,8 @@ def start_evaluation_job(
                 cur.execute(
                     """
                     SELECT c.chat_id, c.embedding_model, j.document_id
-                    FROM evaluation_jobs j 
-                    JOIN chats c ON j.chat_id = c.chat_id 
+                    FROM evaluation_jobs j
+                    JOIN chats c ON j.chat_id = c.chat_id
                     WHERE j.id = %s
                     """,
                     (job_id,)
@@ -203,11 +203,33 @@ def start_evaluation_job(
             judge_model="gpt-4o-mini",
         )
 
-        for st in search_types:
-            _update_job(job_id, progress=f"Evaluating search type: {st}...")
-            logger.info("Evaluating search_type=%s with %d questions", st, len(qa_rows))
+        # Build question → pair_id lookup for routing
+        qa_pair_id_map: Dict[str, str] = {
+            row["question"]: pair_id for row, pair_id in zip(qa_rows, qa_pair_ids)
+        }
 
-            eval_rows = evaluator.run(qa_rows, search_type=st)
+        # Detect typed questions (auto-generated with [Global]/[Local] prefixes)
+        # ppr (Personalized PageRank) operates at graph level → shares the global question set
+        _GLOBAL_RETRIEVERS = {"global", "ms-graphrag-global", "ppr"}
+        global_qa_rows = [r for r in qa_rows if r["question"].startswith("[Global]")]
+        local_qa_rows = [r for r in qa_rows if r["question"].startswith("[Local]")]
+        has_typed_questions = bool(global_qa_rows or local_qa_rows)
+
+        for st in search_types:
+            if has_typed_questions:
+                if st in _GLOBAL_RETRIEVERS:
+                    rows_for_st = global_qa_rows if global_qa_rows else qa_rows
+                else:
+                    rows_for_st = local_qa_rows if local_qa_rows else qa_rows
+            else:
+                rows_for_st = qa_rows
+
+            pair_ids_for_st = [qa_pair_id_map[r["question"]] for r in rows_for_st]
+
+            _update_job(job_id, progress=f"Evaluating search type: {st}...")
+            logger.info("Evaluating search_type=%s with %d questions", st, len(rows_for_st))
+
+            eval_rows = evaluator.run(rows_for_st, search_type=st)
             metrics = RAGEvaluator.aggregate(eval_rows)
 
             with connection() as conn:
@@ -228,7 +250,7 @@ def start_evaluation_job(
                         ),
                     )
 
-                    for er, pair_id in zip(eval_rows, qa_pair_ids):
+                    for er, pair_id in zip(eval_rows, pair_ids_for_st):
                         cur.execute(
                             """
                             INSERT INTO qa_evaluations (

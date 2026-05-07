@@ -186,15 +186,24 @@ async def start_evaluation(
     return {"job_id": job_id, "status": "pending"}
 
 
+_GLOBAL_RETRIEVER_TYPES = {"global", "ms-graphrag-global", "ppr"}
+
+
 @router.post("/generate-questions")
 async def generate_questions(
     llm_provider: str = Form("openai"),
     llm_model: str = Form("gpt-4o-mini"),
     doc_id: str = Form(...),
     num_questions: int = Form(10),
+    search_types: str = Form(""),
     x_chat_id: str = Header(..., alias="X-Chat-Id"),
 ):
-    """Generate questions from a document synchronously for review."""
+    """Generate questions from a document synchronously for review.
+
+    search_types: comma-separated list of retriever types selected by the user.
+    Global-type retrievers (global, ms-graphrag-global, ppr) get global questions;
+    all others get local questions.  Only question types actually needed are generated.
+    """
     if num_questions < 1 or num_questions > 20:
         raise HTTPException(status_code=400, detail="num_questions must be between 1 and 20.")
 
@@ -218,6 +227,11 @@ async def generate_questions(
         logger.warning("Failed to extract text: %s", e)
         raise HTTPException(status_code=500, detail="Could not extract text from document.")
 
+    # Always generate both question types regardless of retriever selection.
+    # Routing (which questions go to which retriever) is handled at evaluation time.
+    generate_global = True
+    generate_local = True
+
     from app.evaluation.pipeline import QuestionGenerator
     progress_queue = queue.Queue()
 
@@ -227,6 +241,8 @@ async def generate_questions(
             qa_pairs = generator.generate_from_text(
                 text,
                 num_questions=num_questions,
+                generate_global=generate_global,
+                generate_local=generate_local,
                 on_progress=lambda msg: progress_queue.put({"type": "progress", "message": msg}),
             )
             progress_queue.put({"type": "complete", "questions": qa_pairs})

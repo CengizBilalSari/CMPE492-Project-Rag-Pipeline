@@ -241,7 +241,7 @@ export default function Evaluation() {
     setIsApproved(false);
     setReviewExpanded(true);
     try {
-      const res = await generateQuestions(provider, model, docId, numQuestions, (msg) => {
+      const res = await generateQuestions(provider, model, docId, numQuestions, selected, (msg) => {
         setGenLogs(prev => {
           if (prev.length > 0 && prev[prev.length - 1].text === msg) return prev;
           return [...prev, { text: msg, cls: classifyLog(msg), time: now() }];
@@ -326,7 +326,20 @@ export default function Evaluation() {
 
   useEffect(() => () => clearInterval(pollRef.current), []);
 
-  const labels = results ? results.map((r) => r.search_type) : [];
+  const GLOBAL_RETRIEVER_TYPES = new Set(["global", "ms-graphrag-global", "ppr"]);
+
+  const hasTypedQuestions = generatedQaPairs
+    ? generatedQaPairs.some(q => q.question.startsWith("[Global]") || q.question.startsWith("[Local]"))
+    : false;
+
+  const globalResults = results ? results.filter(r => GLOBAL_RETRIEVER_TYPES.has(r.search_type)) : [];
+  const localResults = results ? results.filter(r => !GLOBAL_RETRIEVER_TYPES.has(r.search_type)) : [];
+  const globalLabels = globalResults.map(r => r.search_type);
+  const localLabels = localResults.map(r => r.search_type);
+
+  // Counts for review panel
+  const globalQCount = generatedQaPairs ? generatedQaPairs.filter(q => q.question.startsWith("[Global]")).length : 0;
+  const localQCount = generatedQaPairs ? generatedQaPairs.filter(q => q.question.startsWith("[Local]")).length : 0;
 
   return (
     <>
@@ -544,16 +557,33 @@ export default function Evaluation() {
                   {docs.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
               </div>
-              <div className="form-group" style={{ marginBottom: 0, width: "120px" }}>
-                <label># Questions</label>
+              <div className="form-group" style={{ marginBottom: 0, width: "160px" }}>
+                <label># Questions per type</label>
                 <input
                   type="number"
                   min={1} max={20}
                   value={numQuestions}
                   onChange={e => setNumQuestions(Number(e.target.value))}
                 />
+                <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 4 }}>
+                  {numQuestions} global + {numQuestions} local = {numQuestions * 2} total
+                </div>
               </div>
             </div>
+
+            {selected.length > 0 && (
+              <div style={{ marginTop: 12, padding: "10px 12px", background: "rgba(139,92,246,0.06)", border: "1px solid rgba(139,92,246,0.15)", borderRadius: 6, fontSize: 12 }}>
+                <div style={{ fontWeight: 600, marginBottom: 4, color: "var(--text-muted)" }}>Evaluation routing (applied during evaluation, not generation):</div>
+                <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+                  {selected.some(t => GLOBAL_RETRIEVER_TYPES.has(t)) && (
+                    <span>🌍 <strong style={{ color: "var(--cyan)" }}>Global questions</strong> → {selected.filter(t => GLOBAL_RETRIEVER_TYPES.has(t)).join(", ")}</span>
+                  )}
+                  {selected.some(t => !GLOBAL_RETRIEVER_TYPES.has(t)) && (
+                    <span>📍 <strong style={{ color: "var(--accent)" }}>Local questions</strong> → {selected.filter(t => !GLOBAL_RETRIEVER_TYPES.has(t)).join(", ")}</span>
+                  )}
+                </div>
+              </div>
+            )}
 
           </div>
         )}
@@ -578,12 +608,20 @@ export default function Evaluation() {
                   <span style={{ marginRight: 8 }}>✅</span>
                   <strong>Approved Dataset {questionSrc === "auto" ? "- New" : `- Reused (${allPastJobs.find(j => j.id === pastJobId)?.created_at ? new Date(allPastJobs.find(j => j.id === pastJobId).created_at).toLocaleString() : ''})`}</strong> — Document: {docs.find(d => d.id === docId)?.name || docId}
                 </div>
-                <span style={{ color: "var(--text-dim)", fontSize: 13 }}>{generatedQaPairs.length} questions (Click to edit)</span>
+                <span style={{ color: "var(--text-dim)", fontSize: 13 }}>
+                  {hasTypedQuestions
+                    ? `${globalQCount} global + ${localQCount} local (Click to edit)`
+                    : `${generatedQaPairs.length} questions (Click to edit)`}
+                </span>
               </div>
             ) : (
               <>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                  <h4 style={{ margin: 0 }}>Review Questions ({generatedQaPairs.length})</h4>
+                  <h4 style={{ margin: 0 }}>
+                    Review Questions {hasTypedQuestions
+                      ? `(${globalQCount} global + ${localQCount} local)`
+                      : `(${generatedQaPairs.length})`}
+                  </h4>
                   <div style={{ display: "flex", gap: 8 }}>
                     <button className="btn btn-secondary" onClick={() => setGeneratedQaPairs([...generatedQaPairs, { question: "", ground_truth_answer: "" }])} style={{ padding: "4px 8px", fontSize: 12, height: "auto" }}>➕ Add Question</button>
                     {questionSrc === "auto" && <button className="btn btn-secondary" onClick={() => { setGeneratedQaPairs(null); setIsApproved(false); }} style={{ padding: "4px 8px", fontSize: 12, height: "auto" }}>Regenerate</button>}
@@ -591,27 +629,79 @@ export default function Evaluation() {
                 </div>
 
                 <div style={{ maxHeight: 400, overflowY: "auto", border: "1px solid var(--border)", borderRadius: 6, padding: 12, marginBottom: 12 }}>
-                  {generatedQaPairs.map((pair, idx) => (
-                    <div key={idx} style={{ marginBottom: 16, paddingBottom: 16, borderBottom: "1px solid var(--border)" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                        <strong style={{ fontSize: 13, color: "var(--text-dim)" }}>Q{idx + 1}</strong>
-                        <button style={{ background: "transparent", border: "none", color: "var(--text-dim)", cursor: "pointer" }} onClick={() => setGeneratedQaPairs(prev => prev.filter((_, i) => i !== idx))}>🗑️</button>
+                  {hasTypedQuestions ? (
+                    <>
+                      {globalQCount > 0 && (
+                        <>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--cyan)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>
+                            🌍 Global Questions ({globalQCount}) — used with global retrievers
+                          </div>
+                          {generatedQaPairs.filter(p => p.question.startsWith("[Global]")).map((pair, relIdx) => {
+                            const idx = generatedQaPairs.indexOf(pair);
+                            return (
+                              <div key={idx} style={{ marginBottom: 16, paddingBottom: 16, borderBottom: "1px solid var(--border)" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                                  <strong style={{ fontSize: 13, color: "var(--cyan)" }}>G{relIdx + 1}</strong>
+                                  <button style={{ background: "transparent", border: "none", color: "var(--text-dim)", cursor: "pointer" }} onClick={() => setGeneratedQaPairs(prev => prev.filter((_, i) => i !== idx))}>🗑️</button>
+                                </div>
+                                <input type="text" value={pair.question} placeholder="Question"
+                                  onChange={e => setGeneratedQaPairs(prev => { const n = [...prev]; n[idx] = { ...n[idx], question: e.target.value }; return n; })}
+                                  style={{ width: "100%", marginBottom: 8, padding: 8, border: "1px solid var(--border)", borderRadius: 4, background: "var(--bg-card)", color: "var(--text)" }}
+                                />
+                                <textarea value={pair.ground_truth_answer} placeholder="Ground truth answer"
+                                  onChange={e => setGeneratedQaPairs(prev => { const n = [...prev]; n[idx] = { ...n[idx], ground_truth_answer: e.target.value }; return n; })}
+                                  style={{ width: "100%", height: 60, resize: "vertical", fontFamily: "inherit", padding: 8, border: "1px solid var(--border)", borderRadius: 4, background: "var(--bg-card)", color: "var(--text)" }}
+                                />
+                              </div>
+                            );
+                          })}
+                        </>
+                      )}
+                      {localQCount > 0 && (
+                        <>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--accent)", marginBottom: 8, marginTop: globalQCount > 0 ? 16 : 0, textTransform: "uppercase", letterSpacing: 1 }}>
+                            📍 Local Questions ({localQCount}) — used with local & other retrievers
+                          </div>
+                          {generatedQaPairs.filter(p => p.question.startsWith("[Local]")).map((pair, relIdx) => {
+                            const idx = generatedQaPairs.indexOf(pair);
+                            return (
+                              <div key={idx} style={{ marginBottom: 16, paddingBottom: 16, borderBottom: "1px solid var(--border)" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                                  <strong style={{ fontSize: 13, color: "var(--accent)" }}>L{relIdx + 1}</strong>
+                                  <button style={{ background: "transparent", border: "none", color: "var(--text-dim)", cursor: "pointer" }} onClick={() => setGeneratedQaPairs(prev => prev.filter((_, i) => i !== idx))}>🗑️</button>
+                                </div>
+                                <input type="text" value={pair.question} placeholder="Question"
+                                  onChange={e => setGeneratedQaPairs(prev => { const n = [...prev]; n[idx] = { ...n[idx], question: e.target.value }; return n; })}
+                                  style={{ width: "100%", marginBottom: 8, padding: 8, border: "1px solid var(--border)", borderRadius: 4, background: "var(--bg-card)", color: "var(--text)" }}
+                                />
+                                <textarea value={pair.ground_truth_answer} placeholder="Ground truth answer"
+                                  onChange={e => setGeneratedQaPairs(prev => { const n = [...prev]; n[idx] = { ...n[idx], ground_truth_answer: e.target.value }; return n; })}
+                                  style={{ width: "100%", height: 60, resize: "vertical", fontFamily: "inherit", padding: 8, border: "1px solid var(--border)", borderRadius: 4, background: "var(--bg-card)", color: "var(--text)" }}
+                                />
+                              </div>
+                            );
+                          })}
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    generatedQaPairs.map((pair, idx) => (
+                      <div key={idx} style={{ marginBottom: 16, paddingBottom: 16, borderBottom: "1px solid var(--border)" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                          <strong style={{ fontSize: 13, color: "var(--text-dim)" }}>Q{idx + 1}</strong>
+                          <button style={{ background: "transparent", border: "none", color: "var(--text-dim)", cursor: "pointer" }} onClick={() => setGeneratedQaPairs(prev => prev.filter((_, i) => i !== idx))}>🗑️</button>
+                        </div>
+                        <input type="text" value={pair.question} placeholder="Question"
+                          onChange={e => setGeneratedQaPairs(prev => { const n = [...prev]; n[idx].question = e.target.value; return n; })}
+                          style={{ width: "100%", marginBottom: 8, padding: 8, border: "1px solid var(--border)", borderRadius: 4, background: "var(--bg-card)", color: "var(--text)" }}
+                        />
+                        <textarea value={pair.ground_truth_answer} placeholder="Ground truth answer"
+                          onChange={e => setGeneratedQaPairs(prev => { const n = [...prev]; n[idx].ground_truth_answer = e.target.value; return n; })}
+                          style={{ width: "100%", height: 60, resize: "vertical", fontFamily: "inherit", padding: 8, border: "1px solid var(--border)", borderRadius: 4, background: "var(--bg-card)", color: "var(--text)" }}
+                        />
                       </div>
-                      <input
-                        type="text"
-                        value={pair.question}
-                        placeholder="Question"
-                        onChange={e => setGeneratedQaPairs(prev => { const n = [...prev]; n[idx].question = e.target.value; return n; })}
-                        style={{ width: "100%", marginBottom: 8, padding: 8, border: "1px solid var(--border)", borderRadius: 4, background: "var(--bg-card)", color: "var(--text)" }}
-                      />
-                      <textarea
-                        value={pair.ground_truth_answer}
-                        placeholder="Ground truth answer"
-                        onChange={e => setGeneratedQaPairs(prev => { const n = [...prev]; n[idx].ground_truth_answer = e.target.value; return n; })}
-                        style={{ width: "100%", height: 60, resize: "vertical", fontFamily: "inherit", padding: 8, border: "1px solid var(--border)", borderRadius: 4, background: "var(--bg-card)", color: "var(--text)" }}
-                      />
-                    </div>
-                  ))}
+                    ))
+                  )}
                   {generatedQaPairs.length === 0 && <p style={{ color: "var(--text-dim)", textAlign: "center", margin: 0 }}>No questions left.</p>}
                 </div>
 
@@ -701,38 +791,116 @@ export default function Evaluation() {
 
       {/* Results */}
       {results && (
-        <div className="card">
-          <div className="card-header">
-            <div className="card-icon">📈</div>
-            <div style={{ flex: 1 }}>
-              <h3>Results</h3>
-              <div className="card-subtitle">Comparing {results.length} search strategies</div>
-            </div>
-            <button
-              className="btn btn-secondary"
-              onClick={() => exportEvalResults(results)}
-              style={{ fontSize: 13, height: 32 }}
-            >
-              ⬇️ Export CSV
-            </button>
-          </div>
-
-          <div className="chart-grid">
-            {[
-              { key: "answer_accuracy", title: "Answer Accuracy (0–10)" },
-              { key: "context_relevance", title: "Context Relevance (0–10)" },
-              { key: "time_per_request", title: "Avg Time per Request (s)" },
-              { key: "token_cost", title: "Total Token Cost" },
-            ].map(({ key, title }) => (
-              <div className="chart-card" key={key}>
-                <Bar
-                  data={makeChart(title, labels, results.map((r) => r[key]))}
-                  options={chartOpts(title)}
-                />
+        <>
+          {/* Global retrievers group */}
+          {globalResults.length > 0 && (
+            <div className="card">
+              <div className="card-header">
+                <div className="card-icon">🌍</div>
+                <div style={{ flex: 1 }}>
+                  <h3>Global Search Results</h3>
+                  <div className="card-subtitle">
+                    Evaluated with <strong>global questions</strong> · {globalResults.length} strategy{globalResults.length !== 1 ? "s" : ""}: {globalLabels.join(", ")}
+                  </div>
+                </div>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => exportEvalResults(globalResults)}
+                  style={{ fontSize: 13, height: 32 }}
+                >
+                  ⬇️ Export CSV
+                </button>
               </div>
-            ))}
-          </div>
-        </div>
+              <div className="chart-grid">
+                {[
+                  { key: "answer_accuracy", title: "Answer Accuracy (0–10)" },
+                  { key: "context_relevance", title: "Context Relevance (0–10)" },
+                  { key: "time_per_request", title: "Avg Time per Request (s)" },
+                  { key: "token_cost", title: "Total Token Cost" },
+                ].map(({ key, title }) => (
+                  <div className="chart-card" key={key}>
+                    <Bar
+                      data={makeChart(title, globalLabels, globalResults.map((r) => r[key]))}
+                      options={chartOpts(title)}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Local / other retrievers group */}
+          {localResults.length > 0 && (
+            <div className="card">
+              <div className="card-header">
+                <div className="card-icon">📍</div>
+                <div style={{ flex: 1 }}>
+                  <h3>Local & Other Search Results</h3>
+                  <div className="card-subtitle">
+                    Evaluated with <strong>local questions</strong> · {localResults.length} strategy{localResults.length !== 1 ? "s" : ""}: {localLabels.join(", ")}
+                  </div>
+                </div>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => exportEvalResults(localResults)}
+                  style={{ fontSize: 13, height: 32 }}
+                >
+                  ⬇️ Export CSV
+                </button>
+              </div>
+              <div className="chart-grid">
+                {[
+                  { key: "answer_accuracy", title: "Answer Accuracy (0–10)" },
+                  { key: "context_relevance", title: "Context Relevance (0–10)" },
+                  { key: "time_per_request", title: "Avg Time per Request (s)" },
+                  { key: "token_cost", title: "Total Token Cost" },
+                ].map(({ key, title }) => (
+                  <div className="chart-card" key={key}>
+                    <Bar
+                      data={makeChart(title, localLabels, localResults.map((r) => r[key]))}
+                      options={chartOpts(title)}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Fallback: no typed questions, show all together */}
+          {!hasTypedQuestions && globalResults.length === 0 && localResults.length === 0 && (
+            <div className="card">
+              <div className="card-header">
+                <div className="card-icon">📈</div>
+                <div style={{ flex: 1 }}>
+                  <h3>Results</h3>
+                  <div className="card-subtitle">Comparing {results.length} search strategies</div>
+                </div>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => exportEvalResults(results)}
+                  style={{ fontSize: 13, height: 32 }}
+                >
+                  ⬇️ Export CSV
+                </button>
+              </div>
+              <div className="chart-grid">
+                {[
+                  { key: "answer_accuracy", title: "Answer Accuracy (0–10)" },
+                  { key: "context_relevance", title: "Context Relevance (0–10)" },
+                  { key: "time_per_request", title: "Avg Time per Request (s)" },
+                  { key: "token_cost", title: "Total Token Cost" },
+                ].map(({ key, title }) => (
+                  <div className="chart-card" key={key}>
+                    <Bar
+                      data={makeChart(title, results.map(r => r.search_type), results.map((r) => r[key]))}
+                      options={chartOpts(title)}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Per-Question Reasoning */}
@@ -755,9 +923,16 @@ export default function Evaluation() {
 
           {detailsExpanded && (
             <div style={{ maxHeight: 600, overflowY: "auto", padding: "0 16px 16px" }}>
-              {[...new Set(evalDetails.map(d => d.search_type))].map(st => (
+              {[...new Set(evalDetails.map(d => d.search_type))].map(st => {
+                const isGlobalRetriever = GLOBAL_RETRIEVER_TYPES.has(st);
+                return (
                 <div key={st} style={{ marginBottom: 24 }}>
-                  <h4 style={{ margin: "16px 0 8px", color: "var(--accent)", textTransform: "uppercase", fontSize: 13, letterSpacing: 1 }}>{st}</h4>
+                  <h4 style={{ margin: "16px 0 4px", color: isGlobalRetriever ? "var(--cyan)" : "var(--accent)", textTransform: "uppercase", fontSize: 13, letterSpacing: 1 }}>
+                    {isGlobalRetriever ? "🌍" : "📍"} {st}
+                  </h4>
+                  <div style={{ fontSize: 11, color: "var(--text-dim)", marginBottom: 8 }}>
+                    {isGlobalRetriever ? "Evaluated with global questions" : "Evaluated with local questions"}
+                  </div>
                   {evalDetails.filter(d => d.search_type === st).map((d, i) => (
                     <div key={i} style={{ padding: 12, marginBottom: 8, border: "1px solid var(--border)", borderRadius: 6, background: "var(--bg-card)" }}>
                       <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>{d.question}</div>
@@ -874,7 +1049,7 @@ export default function Evaluation() {
                     </div>
                   ))}
                 </div>
-              ))}
+              );})}
             </div>
           )}
         </div>
