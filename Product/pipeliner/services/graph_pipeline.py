@@ -160,8 +160,12 @@ class GraphRAGPipeline:
 
         yield f"Step 1/6: Chunking ({self.config.chunking.strategy} strategy)..."
         t0 = time.time()
+        yield f"detail:chunk:Splitting document ({len(document_text):,} chars) into chunks..."
         chunks = self.chunker.chunk(document_text)
+        yield f"detail:chunk:Created {len(chunks)} chunks (avg {len(document_text) // max(len(chunks), 1)} chars each)"
+        yield f"detail:chunk:Writing chunks to Neo4j..."
         self.writer.write_chunks(doc_id, chunks)
+        yield f"detail:chunk:All {len(chunks)} chunks persisted"
         self.step_times["1. Chunking"] = time.time() - t0
         yield f"Step 1/6: Chunking complete — {len(chunks)} chunks produced."
 
@@ -177,7 +181,17 @@ class GraphRAGPipeline:
         chunk_ids = [u[0] for u in unextracted]
         chunk_texts = [u[1] for u in unextracted]
 
-        extraction_results = await self.er_extractor.extract_from_chunks(chunk_texts)
+        yield f"detail:extract:Starting LLM extraction (concurrency={self.er_extractor.max_concurrency})..."
+        extraction_results = await self.er_extractor.extract_from_chunks_with_progress(
+            chunk_texts, progress_callback=lambda msg: None
+        )
+        # Emit per-chunk details after extraction
+        for r in extraction_results:
+            e_count = len(r.entities)
+            r_count = len(r.relations)
+            yield f"detail:extract:Chunk {r.chunk_index + 1}/{len(chunk_texts)} → {e_count} entities, {r_count} relations"
+
+        yield f"detail:extract:Writing results to Neo4j..."
         self.writer.write_entities_and_relations(chunk_ids, extraction_results)
 
         total_entities = sum(len(r.entities) for r in extraction_results)
@@ -211,7 +225,11 @@ class GraphRAGPipeline:
             database=self.config.neo4j.database,
             use_llm=er_config.use_llm,
         )
+        yield f"detail:resolve:Computing entity embeddings..."
+        yield f"detail:resolve:LLM verification {'enabled' if er_config.use_llm else 'disabled'}"
         decisions = await resolver.resolve()
+        for d in decisions:
+            yield f"detail:resolve:Merged [{', '.join(d.group)}] → '{d.canonical_name}'"
         self.step_times["3. Entity Resolution"] = time.time() - t0
         self.writer.update_document_status(doc_id, "RESOLVED")
         yield f"Step 3/6: Entity Resolution complete — {len(decisions)} merge groups resolved."
@@ -230,6 +248,7 @@ class GraphRAGPipeline:
             entity_rows = [(r["name"], r["description"] or "") for r in result if r["name"]]
 
         if entity_rows:
+            yield f"detail:embed:Embedding {len(entity_rows)} entities using {self.config.embedding.model}..."
             embed_texts = [
                 f"{name}: {desc}".strip(": ") if desc else name
                 for name, desc in entity_rows
@@ -241,6 +260,7 @@ class GraphRAGPipeline:
             )
             name_to_emb = {name: emb for (name, _), emb in zip(entity_rows, entity_embeddings)}
             self.writer.write_entity_embeddings(name_to_emb)
+            yield f"detail:embed:✔ {len(entity_rows)} entity embeddings written to Neo4j"
             yield f"  - Embedded {len(entity_rows)} entities."
 
         # 2. Embed Chunks
@@ -253,6 +273,7 @@ class GraphRAGPipeline:
             chunk_rows = [(r["id"], r["text"]) for r in result if r["text"]]
 
         if chunk_rows:
+            yield f"detail:embed:Embedding {len(chunk_rows)} chunks using {self.config.embedding.model}..."
             chunk_texts = [text for _, text in chunk_rows]
             chunk_embeddings = await hf_embed(
                 chunk_texts,
@@ -261,6 +282,7 @@ class GraphRAGPipeline:
             )
             id_to_emb = {cid: emb for (cid, _), emb in zip(chunk_rows, chunk_embeddings)}
             self.writer.write_chunk_embeddings(id_to_emb)
+            yield f"detail:embed:✔ {len(chunk_rows)} chunk embeddings written to Neo4j"
             yield f"  - Embedded {len(chunk_rows)} chunks."
 
         self.step_times["4. Embedding"] = time.time() - t0
@@ -273,6 +295,7 @@ class GraphRAGPipeline:
     async def _community_step(self, doc_id: str) -> AsyncGenerator[str, None]:
         yield "Step 5/6: Community detection..."
         t0 = time.time()
+        yield f"detail:community:Running {self.config.community_detection.algorithm} algorithm (resolution={self.config.community_detection.resolution})..."
         detector = CommunityDetector(
             driver=self._driver,
             database=self.config.neo4j.database,
@@ -281,6 +304,10 @@ class GraphRAGPipeline:
             level=self.config.community_detection.level,
         )
         communities = detector.detect()
+        if communities:
+            sizes = [len(members) for members in communities.values()]
+            yield f"detail:community:Found {len(communities)} communities (avg size: {sum(sizes)/len(sizes):.1f}, range: {min(sizes)}-{max(sizes)})"
+        yield f"detail:community:Writing communities to Neo4j..."
         self.writer.write_communities(communities)
         self.step_times["5. Community Detection"] = time.time() - t0
         yield f"Step 5/6: Community detection complete — {len(communities)} communities detected."
@@ -299,7 +326,12 @@ class GraphRAGPipeline:
             yield "Step 6/6: Summarization — skipped (all communities already summarized)."
             return
 
+        yield f"detail:summarize:Summarizing {len(communities_to_summarize)} communities (concurrency={self.config.extraction.max_concurrency})..."
         summaries = await summarizer.summarize(communities_to_summarize)
+        # Emit per-community detail
+        for i, (comm_id, summary_text) in enumerate(summaries.items(), 1):
+            preview = (summary_text[:80] + "...") if len(summary_text) > 80 else summary_text
+            yield f"detail:summarize:Community {i}/{len(summaries)} summarized ({len(summary_text)} chars)"
         self.writer.write_community_summaries(summaries)
         self.step_times["6. Summarize Communities"] = time.time() - t0
         self.writer.update_document_status(doc_id, "COMPLETED")

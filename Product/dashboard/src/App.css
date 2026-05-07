@@ -615,8 +615,8 @@ body {
 
 .step-item {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 0;
   padding: 10px 14px;
   border-radius: var(--radius-sm);
   background: var(--surface);
@@ -685,6 +685,130 @@ body {
 
 .step-item.active .step-label {
   color: var(--accent);
+}
+
+/* ── Step Detail Panel ───────────────────────────────── */
+.step-main-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.step-details-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: all var(--anim);
+  flex-shrink: 0;
+}
+
+.step-details-toggle:hover {
+  border-color: rgba(139, 92, 246, 0.4);
+  color: var(--accent);
+  background: rgba(139, 92, 246, 0.06);
+}
+
+.step-details-toggle.expanded {
+  border-color: rgba(139, 92, 246, 0.3);
+  color: var(--accent);
+  background: rgba(139, 92, 246, 0.08);
+}
+
+.step-details-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  background: rgba(139, 92, 246, 0.15);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--mono);
+}
+
+.step-details-chevron {
+  font-size: 10px;
+  line-height: 1;
+  transition: transform var(--anim);
+}
+
+.step-working-indicator {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-dim);
+  font-style: italic;
+  animation: pulse-text 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-text {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+.step-details-panel {
+  margin-top: 8px;
+  margin-left: 34px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  border-left: 2px solid rgba(139, 92, 246, 0.2);
+  animation: details-expand 0.2s ease-out;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+@keyframes details-expand {
+  from {
+    opacity: 0;
+    max-height: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    max-height: 200px;
+    transform: translateY(0);
+  }
+}
+
+.step-detail-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.7;
+  padding: 1px 0;
+}
+
+.step-detail-dot {
+  width: 4px;
+  height: 4px;
+  min-width: 4px;
+  border-radius: 50%;
+  background: rgba(139, 92, 246, 0.5);
+  margin-top: 7px;
+}
+
+.step-item.done .step-detail-line {
+  color: var(--text-dim);
+}
+
+.step-item.done .step-detail-dot {
+  background: rgba(16, 185, 129, 0.4);
 }
 
 /* ── Retriever Insights ──────────────────────────────── */

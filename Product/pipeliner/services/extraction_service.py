@@ -65,6 +65,11 @@ class EntityRelationshipExtractor:
         self.max_concurrency = max_concurrency
 
     async def extract_from_chunks(self, chunks: list[str]) -> list[ExtractionResult]:
+        return await self.extract_from_chunks_with_progress(chunks)
+
+    async def extract_from_chunks_with_progress(
+        self, chunks: list[str], progress_callback=None,
+    ) -> list[ExtractionResult]:
         sem = asyncio.Semaphore(self.max_concurrency)
         tasks = [
             self._extract_single(sem, idx, chunk)

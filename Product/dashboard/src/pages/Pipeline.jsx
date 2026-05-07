@@ -35,6 +35,11 @@ const PIPELINE_STEPS = [
   { id: "summarize", label: "Summarization",          keywords: ["summar"] },
 ];
 
+const DETAIL_STEP_MAP = {
+  chunk: 0, extract: 1, resolve: 2, resolv: 2,
+  embed: 3, community: 4, summarize: 5, summar: 5,
+};
+
 // Known pipeline step keywords → classify log line appearance
 function classifyLog(text) {
   const t = text.toLowerCase();
@@ -73,6 +78,8 @@ export default function Pipeline() {
   const [done, setDone] = useState(false);
   const [activeStep, setActiveStep] = useState(-1);
   const [completedSteps, setCompletedSteps] = useState(new Set());
+  const [stepDetails, setStepDetails] = useState({});  // { stepIdx: ["detail msg", ...] }
+  const [expandedSteps, setExpandedSteps] = useState(new Set());
   const wsRef = useRef(null);
   const logEndRef = useRef(null);
 
@@ -159,6 +166,8 @@ export default function Pipeline() {
     setRunning(true);
     setActiveStep(-1);
     setCompletedSteps(new Set());
+    setStepDetails({});
+    setExpandedSteps(new Set());
     pushLog("Connecting to pipeline…", "log-dim");
 
     const payload = {
@@ -183,6 +192,21 @@ export default function Pipeline() {
           msg.type === "complete" ||
           text.toLowerCase().includes("pipeline complete") ||
           text.toLowerCase().includes("finished");
+
+        // Handle detail messages — don't add to main logs
+        if (text.startsWith("detail:")) {
+          const parts = text.slice(7).split(":", 2); // "chunk:message..."
+          const stepKey = parts[0];
+          const detailMsg = parts[1] || "";
+          const stepIdx = DETAIL_STEP_MAP[stepKey];
+          if (stepIdx !== undefined) {
+            setStepDetails((prev) => ({
+              ...prev,
+              [stepIdx]: [...(prev[stepIdx] || []), detailMsg],
+            }));
+          }
+          return;
+        }
 
         pushLog(text, isError ? "log-error" : "");
 
@@ -459,12 +483,47 @@ export default function Pipeline() {
               const isDone = completedSteps.has(idx);
               const isActive = running && activeStep === idx && !isDone;
               const cls = isDone ? "done" : isActive ? "active" : "";
+              const details = stepDetails[idx] || [];
+              const isExpanded = expandedSteps.has(idx);
+              const hasDetails = details.length > 0;
               return (
                 <div key={step.id} className={`step-item ${cls}`}>
-                  <div className="step-bullet">
-                    {isDone ? "✓" : isActive ? "⚙" : idx + 1}
+                  <div className="step-main-row">
+                    <div className="step-bullet">
+                      {isDone ? "✓" : isActive ? "⚙" : idx + 1}
+                    </div>
+                    <div className="step-label">{step.label}</div>
+                    {hasDetails && (
+                      <button
+                        className={`step-details-toggle ${isExpanded ? "expanded" : ""}`}
+                        onClick={() => {
+                          setExpandedSteps((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(idx)) next.delete(idx);
+                            else next.add(idx);
+                            return next;
+                          });
+                        }}
+                      >
+                        <span className="step-details-count">{details.length}</span>
+                        <span className="step-details-chevron">{isExpanded ? "▾" : "▸"}</span>
+                        Details
+                      </button>
+                    )}
+                    {isActive && !hasDetails && (
+                      <span className="step-working-indicator">working…</span>
+                    )}
                   </div>
-                  <div className="step-label">{step.label}</div>
+                  {isExpanded && hasDetails && (
+                    <div className="step-details-panel">
+                      {details.map((d, i) => (
+                        <div key={i} className="step-detail-line">
+                          <span className="step-detail-dot" />
+                          {d}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}
