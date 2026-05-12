@@ -193,21 +193,30 @@ class MSGraphRAGPipeline:
             env={**os.environ, "GRAPHRAG_API_KEY": os.getenv("OPENAI_API_KEY", "")},
         )
 
-        assert process.stdout is not None
-        while True:
-            line = await process.stdout.readline()
-            if not line:
-                break
-            decoded = line.decode("utf-8", errors="replace").rstrip()
-            if decoded:
-                logger.info("[ms-graphrag] %s", decoded)
-                yield decoded
+        try:
+            assert process.stdout is not None
+            while True:
+                line = await process.stdout.readline()
+                if not line:
+                    break
+                decoded = line.decode("utf-8", errors="replace").rstrip()
+                if decoded:
+                    logger.info("[ms-graphrag] %s", decoded)
+                    yield decoded
 
-        returncode = await process.wait()
-        if returncode != 0:
-            raise RuntimeError(
-                f"graphrag index failed with exit code {returncode}"
-            )
+            returncode = await process.wait()
+            if returncode != 0:
+                raise RuntimeError(
+                    f"graphrag index failed with exit code {returncode}"
+                )
+        except asyncio.CancelledError:
+            process.terminate()
+            try:
+                await asyncio.wait_for(process.wait(), timeout=5)
+            except asyncio.TimeoutError:
+                process.kill()
+                await process.wait()
+            raise
 
     # ── database tracking ─────────────────────────────────────────
 

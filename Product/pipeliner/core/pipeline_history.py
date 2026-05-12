@@ -84,3 +84,17 @@ class PipelineHistory:
                 )
             conn.commit()
         logger.info("Pipeline run %s marked FAILED.", run_id)
+
+    def cancel_run(self, run_id: str, reason: str = "Cancelled by user") -> None:
+        with connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE pipeline_runs
+                    SET status = 'CANCELLED', error = %s, completed_at = now()
+                    WHERE id = %s
+                    """,
+                    (reason, run_id),
+                )
+            conn.commit()
+        logger.info("Pipeline run %s marked CANCELLED.", run_id)

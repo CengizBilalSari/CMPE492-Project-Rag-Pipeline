@@ -68,7 +68,7 @@ class EntityResolver:
         from graphdatascience import GraphDataScience
         self._gds = GraphDataScience.from_neo4j_driver(driver=driver, database=database)
 
-    async def resolve(self) -> list[MergeDecision]:
+    async def resolve(self, progress_callback=None) -> list[MergeDecision]:
         entity_names = self._fetch_entity_names()
         if len(entity_names) < 2:
             logger.info("Fewer than 2 entities — skipping resolution.")
@@ -76,7 +76,9 @@ class EntityResolver:
 
         logger.info("Entity resolution: %d entities found.", len(entity_names))
 
-        await self._store_embeddings(entity_names)
+        if progress_callback:
+            progress_callback("embedding", 0, len(entity_names))
+        await self._store_embeddings(entity_names, progress_callback=progress_callback)
 
         knn_graph_name = "__er_knn_graph__"
         self._project_knn_graph(knn_graph_name)
@@ -95,7 +97,7 @@ class EntityResolver:
             return []
 
         if self.use_llm:
-            decisions = await self._llm_evaluate(filtered_groups)
+            decisions = await self._llm_evaluate(filtered_groups, progress_callback=progress_callback)
             approved = [d for d in decisions if d.should_merge]
             logger.info("LLM approved %d / %d merge groups.", len(approved), len(decisions))
         else:
@@ -105,8 +107,12 @@ class EntityResolver:
                 for g in filtered_groups
             ]
 
-        for decision in approved:
+        if progress_callback and approved:
+            progress_callback("merge", 0, len(approved))
+        for idx, decision in enumerate(approved, 1):
             self._apply_merge(decision)
+            if progress_callback:
+                progress_callback("merge", idx, len(approved))
 
         self._cleanup_embeddings()
         return approved
@@ -116,16 +122,18 @@ class EntityResolver:
         records, _, _ = self.driver.execute_query(query, database_=self.database)
         return [r["name"] for r in records if r["name"]]
 
-    async def _store_embeddings(self, names: list[str]) -> None:
+    async def _store_embeddings(self, names: list[str], progress_callback=None) -> None:
         logger.info("Computing embeddings for %d entities...", len(names))
         embeddings = await self.embedding_fn(names)
 
         with self.driver.session(database=self.database) as session:
-            for name, emb in zip(names, embeddings):
+            for idx, (name, emb) in enumerate(zip(names, embeddings), 1):
                 session.run(
                     "MATCH (e:Entity {name: $name}) SET e.embedding = $emb",
                     name=name, emb=emb,
                 )
+                if progress_callback:
+                    progress_callback("embedding", idx, len(names))
         logger.info("Embeddings stored on Entity nodes.")
 
     def _cleanup_embeddings(self) -> None:
@@ -230,19 +238,37 @@ class EntityResolver:
                     filtered.append(list(comp))
         return filtered
 
-    async def _llm_evaluate(self, groups: list[list[str]]) -> list[MergeDecision]:
+    async def _llm_evaluate(self, groups: list[list[str]], progress_callback=None) -> list[MergeDecision]:
         sem = asyncio.Semaphore(self.max_concurrency)
-        tasks = [self._evaluate_group(sem, group) for group in groups]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        total = len(groups)
+        tasks = [asyncio.create_task(self._evaluate_group_safe(sem, idx, group)) for idx, group in enumerate(groups)]
 
-        decisions: list[MergeDecision] = []
-        for i, result in enumerate(results):
-            if isinstance(result, Exception):
-                logger.error("LLM evaluation failed for group %d: %s", i, result)
-                decisions.append(MergeDecision(group=groups[i], should_merge=False, canonical_name=""))
-            else:
-                decisions.append(result)
+        decisions: list[MergeDecision] = [
+            MergeDecision(group=group, should_merge=False, canonical_name="")
+            for group in groups
+        ]
+        completed = 0
+        for task in asyncio.as_completed(tasks):
+            idx, result, err = await task
+            if err is not None:
+                logger.error("LLM evaluation failed for group %d: %s", idx, err)
+            elif result is not None:
+                decisions[idx] = result
+
+            completed += 1
+            if progress_callback:
+                progress_callback("llm", completed, total)
+
         return decisions
+
+    async def _evaluate_group_safe(
+        self, sem: asyncio.Semaphore, idx: int, group: list[str]
+    ) -> tuple[int, MergeDecision | None, Exception | None]:
+        try:
+            result = await self._evaluate_group(sem, group)
+            return idx, result, None
+        except Exception as exc:
+            return idx, None, exc
 
     async def _evaluate_group(self, sem: asyncio.Semaphore, group: list[str]) -> MergeDecision:
         async with sem:

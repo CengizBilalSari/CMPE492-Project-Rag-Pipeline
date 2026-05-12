@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import logging
 import time
+from contextlib import suppress
 from typing import Any, AsyncGenerator
 
 import neo4j
@@ -73,6 +74,14 @@ class GraphRAGPipeline:
             max_concurrency=config.extraction.max_concurrency,
         )
         self.step_times: dict[str, float] = {}
+        self._cancel_event = asyncio.Event()
+
+    def cancel(self) -> None:
+        self._cancel_event.set()
+
+    def _check_cancelled(self) -> None:
+        if self._cancel_event.is_set():
+            raise asyncio.CancelledError
 
     async def run(self, document_text: str, doc_title: str = "", doc_source: str = "") -> AsyncGenerator[str, None]:
         """Run the full pipeline, yielding status messages for real-time streaming."""
@@ -105,32 +114,38 @@ class GraphRAGPipeline:
 
         try:
             # Step 1: Chunking
+            self._check_cancelled()
             self._update_run_status("CHUNKING")
             async for msg in self._chunk_step(doc_id, document_text):
                 yield msg
 
             # Step 2: Extraction
+            self._check_cancelled()
             self._update_run_status("EXTRACTING")
             async for msg in self._extraction_step(doc_id):
                 yield msg
 
             # Step 3: Entity Resolution
+            self._check_cancelled()
             if self.config.entity_resolution.enabled:
                 self._update_run_status("RESOLVING")
                 async for msg in self._resolution_step(doc_id):
                     yield msg
 
             # Step 4: Embedding
+            self._check_cancelled()
             self._update_run_status("EMBEDDING")
             async for msg in self._embedding_step(doc_id):
                 yield msg
 
             # Step 5: Community Detection
+            self._check_cancelled()
             self._update_run_status("COMMUNITY_DETECTION")
             async for msg in self._community_step(doc_id):
                 yield msg
 
             # Step 6: Community Summarization
+            self._check_cancelled()
             self._update_run_status("SUMMARIZING")
             async for msg in self._summarization_step(doc_id):
                 yield msg
@@ -143,6 +158,13 @@ class GraphRAGPipeline:
 
             yield "Pipeline completed."
 
+        except asyncio.CancelledError:
+            if self._history and self._run_id:
+                try:
+                    self._history.cancel_run(self._run_id)
+                except Exception:
+                    pass
+            raise
         except Exception as e:
             if self._history and self._run_id:
                 try:
@@ -159,6 +181,7 @@ class GraphRAGPipeline:
             yield "Step 1/6: Chunking — skipped (already completed)."
             return
 
+        self._check_cancelled()
         yield f"Step 1/6: Chunking ({self.config.chunking.strategy} strategy)..."
         t0 = time.time()
         yield f"detail:chunk:Splitting document ({len(document_text):,} chars) into chunks..."
@@ -204,24 +227,40 @@ class GraphRAGPipeline:
             )
         )
 
-        # Yield progress messages as they arrive
-        completed = 0
-        while completed < total:
-            try:
-                msg = await asyncio.wait_for(progress_queue.get(), timeout=0.5)
+        try:
+            # Yield progress messages as they arrive
+            completed = 0
+            while completed < total:
+                if self._cancel_event.is_set():
+                    task.cancel()
+                    with suppress(asyncio.CancelledError):
+                        await task
+                    raise asyncio.CancelledError
+                try:
+                    msg = await asyncio.wait_for(progress_queue.get(), timeout=0.5)
+                    yield msg
+                    if msg.startswith("progress:"):
+                        completed = int(msg.rsplit("/", 1)[0].rsplit(":", 1)[1])
+                except asyncio.TimeoutError:
+                    if task.done():
+                        break
+
+            # Drain any remaining messages
+            while not progress_queue.empty():
+                msg = progress_queue.get_nowait()
                 yield msg
-                if msg.startswith("progress:"):
-                    completed = int(msg.rsplit("/", 1)[0].rsplit(":", 1)[1])
-            except asyncio.TimeoutError:
-                if task.done():
-                    break
 
-        # Drain any remaining messages
-        while not progress_queue.empty():
-            msg = progress_queue.get_nowait()
-            yield msg
-
-        extraction_results = await task
+            extraction_results = await task
+        except asyncio.CancelledError:
+            task.cancel()
+            with suppress(asyncio.CancelledError):
+                await task
+            raise
+        finally:
+            if not task.done():
+                task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await task
 
         yield f"detail:extract:Writing results to Neo4j..."
         self.writer.write_entities_and_relations(chunk_ids, extraction_results)
@@ -259,7 +298,41 @@ class GraphRAGPipeline:
         )
         yield f"detail:resolve:Computing entity embeddings..."
         yield f"detail:resolve:LLM verification {'enabled' if er_config.use_llm else 'disabled'}"
-        decisions = await resolver.resolve()
+        progress_queue: asyncio.Queue = asyncio.Queue()
+
+        def on_progress(stage: str, completed: int, total: int) -> None:
+            progress_queue.put_nowait(f"progress:resolve:{completed}/{total}")
+
+        task = asyncio.create_task(resolver.resolve(progress_callback=on_progress))
+
+        try:
+            while True:
+                if self._cancel_event.is_set():
+                    task.cancel()
+                    with suppress(asyncio.CancelledError):
+                        await task
+                    raise asyncio.CancelledError
+                try:
+                    msg = await asyncio.wait_for(progress_queue.get(), timeout=0.5)
+                    yield msg
+                except asyncio.TimeoutError:
+                    if task.done():
+                        break
+
+            while not progress_queue.empty():
+                yield progress_queue.get_nowait()
+
+            decisions = await task
+        except asyncio.CancelledError:
+            task.cancel()
+            with suppress(asyncio.CancelledError):
+                await task
+            raise
+        finally:
+            if not task.done():
+                task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await task
         for d in decisions:
             yield f"detail:resolve:Merged [{', '.join(d.group)}] → '{d.canonical_name}'"
         self.step_times["3. Entity Resolution"] = time.time() - t0
@@ -285,11 +358,47 @@ class GraphRAGPipeline:
                 f"{name}: {desc}".strip(": ") if desc else name
                 for name, desc in entity_rows
             ]
-            entity_embeddings = await hf_embed(
-                embed_texts,
-                model_name=self.config.embedding.model,
-                show_progress=True,
+            progress_queue: asyncio.Queue = asyncio.Queue()
+
+            def on_progress(completed: int, total: int) -> None:
+                progress_queue.put_nowait(f"progress:embed:{completed}/{total}")
+
+            task = asyncio.create_task(
+                hf_embed(
+                    embed_texts,
+                    model_name=self.config.embedding.model,
+                    progress_callback=on_progress,
+                )
             )
+
+            try:
+                while True:
+                    if self._cancel_event.is_set():
+                        task.cancel()
+                        with suppress(asyncio.CancelledError):
+                            await task
+                        raise asyncio.CancelledError
+                    try:
+                        msg = await asyncio.wait_for(progress_queue.get(), timeout=0.5)
+                        yield msg
+                    except asyncio.TimeoutError:
+                        if task.done():
+                            break
+
+                while not progress_queue.empty():
+                    yield progress_queue.get_nowait()
+
+                entity_embeddings = await task
+            except asyncio.CancelledError:
+                task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await task
+                raise
+            finally:
+                if not task.done():
+                    task.cancel()
+                    with suppress(asyncio.CancelledError):
+                        await task
             name_to_emb = {name: emb for (name, _), emb in zip(entity_rows, entity_embeddings)}
             self.writer.write_entity_embeddings(name_to_emb)
             yield f"detail:embed:✔ {len(entity_rows)} entity embeddings written to Neo4j"
@@ -307,11 +416,47 @@ class GraphRAGPipeline:
         if chunk_rows:
             yield f"detail:embed:Embedding {len(chunk_rows)} chunks using {self.config.embedding.model}..."
             chunk_texts = [text for _, text in chunk_rows]
-            chunk_embeddings = await hf_embed(
-                chunk_texts,
-                model_name=self.config.embedding.model,
-                show_progress=True,
+            progress_queue: asyncio.Queue = asyncio.Queue()
+
+            def on_progress(completed: int, total: int) -> None:
+                progress_queue.put_nowait(f"progress:embed:{completed}/{total}")
+
+            task = asyncio.create_task(
+                hf_embed(
+                    chunk_texts,
+                    model_name=self.config.embedding.model,
+                    progress_callback=on_progress,
+                )
             )
+
+            try:
+                while True:
+                    if self._cancel_event.is_set():
+                        task.cancel()
+                        with suppress(asyncio.CancelledError):
+                            await task
+                        raise asyncio.CancelledError
+                    try:
+                        msg = await asyncio.wait_for(progress_queue.get(), timeout=0.5)
+                        yield msg
+                    except asyncio.TimeoutError:
+                        if task.done():
+                            break
+
+                while not progress_queue.empty():
+                    yield progress_queue.get_nowait()
+
+                chunk_embeddings = await task
+            except asyncio.CancelledError:
+                task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await task
+                raise
+            finally:
+                if not task.done():
+                    task.cancel()
+                    with suppress(asyncio.CancelledError):
+                        await task
             id_to_emb = {cid: emb for (cid, _), emb in zip(chunk_rows, chunk_embeddings)}
             self.writer.write_chunk_embeddings(id_to_emb)
             yield f"detail:embed:✔ {len(chunk_rows)} chunk embeddings written to Neo4j"
@@ -328,6 +473,7 @@ class GraphRAGPipeline:
         yield "Step 5/6: Community detection..."
         t0 = time.time()
         yield f"detail:community:Running {self.config.community_detection.algorithm} algorithm (resolution={self.config.community_detection.resolution})..."
+        yield "progress:community:0/1"
         detector = CommunityDetector(
             driver=self._driver,
             database=self.config.neo4j.database,
@@ -336,11 +482,47 @@ class GraphRAGPipeline:
             level=self.config.community_detection.level,
         )
         communities = detector.detect()
+        self._check_cancelled()
+        yield "progress:community:1/1"
         if communities:
             sizes = [len(members) for members in communities.values()]
             yield f"detail:community:Found {len(communities)} communities (avg size: {sum(sizes)/len(sizes):.1f}, range: {min(sizes)}-{max(sizes)})"
         yield f"detail:community:Writing communities to Neo4j..."
-        self.writer.write_communities(communities)
+        if communities:
+            progress_queue: asyncio.Queue = asyncio.Queue()
+            loop = asyncio.get_running_loop()
+
+            def on_progress(completed: int, total: int) -> None:
+                loop.call_soon_threadsafe(
+                    progress_queue.put_nowait,
+                    f"progress:community:{completed}/{total}",
+                )
+
+            task = asyncio.to_thread(
+                self.writer.write_communities,
+                communities,
+                progress_callback=on_progress,
+            )
+
+            try:
+                while True:
+                    if self._cancel_event.is_set():
+                        raise asyncio.CancelledError
+                    try:
+                        msg = await asyncio.wait_for(progress_queue.get(), timeout=0.5)
+                        yield msg
+                    except asyncio.TimeoutError:
+                        if task.done():
+                            break
+
+                while not progress_queue.empty():
+                    yield progress_queue.get_nowait()
+
+                await task
+            except asyncio.CancelledError:
+                raise
+        else:
+            self.writer.write_communities(communities)
         self.step_times["5. Community Detection"] = time.time() - t0
         yield f"Step 5/6: Community detection complete — {len(communities)} communities detected."
 
@@ -373,23 +555,39 @@ class GraphRAGPipeline:
             summarizer.summarize(communities_to_summarize, progress_callback=on_community_done)
         )
 
-        completed = 0
-        while completed < total:
-            try:
-                msg = await asyncio.wait_for(progress_queue.get(), timeout=0.5)
+        try:
+            completed = 0
+            while completed < total:
+                if self._cancel_event.is_set():
+                    task.cancel()
+                    with suppress(asyncio.CancelledError):
+                        await task
+                    raise asyncio.CancelledError
+                try:
+                    msg = await asyncio.wait_for(progress_queue.get(), timeout=0.5)
+                    yield msg
+                    if msg.startswith("progress:"):
+                        completed = int(msg.rsplit("/", 1)[0].rsplit(":", 1)[1])
+                except asyncio.TimeoutError:
+                    if task.done():
+                        break
+
+            # Drain any remaining messages
+            while not progress_queue.empty():
+                msg = progress_queue.get_nowait()
                 yield msg
-                if msg.startswith("progress:"):
-                    completed = int(msg.rsplit("/", 1)[0].rsplit(":", 1)[1])
-            except asyncio.TimeoutError:
-                if task.done():
-                    break
 
-        # Drain any remaining messages
-        while not progress_queue.empty():
-            msg = progress_queue.get_nowait()
-            yield msg
-
-        summaries = await task
+            summaries = await task
+        except asyncio.CancelledError:
+            task.cancel()
+            with suppress(asyncio.CancelledError):
+                await task
+            raise
+        finally:
+            if not task.done():
+                task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await task
         self.writer.write_community_summaries(summaries)
         self.step_times["6. Summarize Communities"] = time.time() - t0
         self.writer.update_document_status(doc_id, "COMPLETED")
