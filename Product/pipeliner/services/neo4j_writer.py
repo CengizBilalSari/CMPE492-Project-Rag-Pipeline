@@ -159,7 +159,9 @@ class GraphRAGNeo4jWriter:
         total_relations = sum(len(r.relations) for r in extraction_results)
         logger.info("Wrote %d entities, %d relations.", total_entities, total_relations)
 
-    def write_communities(self, communities: dict[int, list[str]]) -> None:
+    def write_communities(self, communities: dict[int, list[str]], progress_callback=None) -> None:
+        total = len(communities)
+        completed = 0
         with self.driver.session(database=self.database) as session:
             for comm_id, entity_names in communities.items():
                 session.run(
@@ -175,6 +177,9 @@ class GraphRAGNeo4jWriter:
                         """,
                         name=name, comm_id=str(comm_id),
                     )
+                completed += 1
+                if progress_callback:
+                    progress_callback(completed, total)
         logger.info("Wrote %d communities.", len(communities))
 
     def write_community_summaries(self, summaries: dict[int, str]) -> None:

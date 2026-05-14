@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import asyncio
 import io
 import json
 import logging
 import traceback
+from contextlib import suppress
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
@@ -163,15 +165,42 @@ async def run_pipeline(ws: WebSocket):
         else:
             pipeline = GraphRAGPipeline(config, chat_id=chat_id, document_id=document_id)
 
+        queue: asyncio.Queue[tuple[str, str | None]] = asyncio.Queue()
+
+        async def _produce():
+            try:
+                async for status_msg in pipeline.run(
+                    document_text=document_text,
+                    doc_title=doc_title,
+                    doc_source=doc_source,
+                ):
+                    await queue.put(("status", status_msg))
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                await queue.put(("error", str(e)))
+            finally:
+                await queue.put(("done", None))
+
+        producer_task = asyncio.create_task(_produce())
+
         try:
-            async for status_msg in pipeline.run(
-                document_text=document_text,
-                doc_title=doc_title,
-                doc_source=doc_source,
-            ):
-                await ws.send_json({"type": "status", "message": status_msg})
+            while True:
+                msg_type, msg = await queue.get()
+                if msg_type == "done":
+                    break
+                await ws.send_json({"type": msg_type, "message": msg})
+        except WebSocketDisconnect:
+            logger.info("WebSocket client disconnected.")
         finally:
+            pipeline.cancel()
+            if not producer_task.done():
+                producer_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await producer_task
             pipeline.close()
+            with suppress(Exception):
+                await ws.close()
 
     except WebSocketDisconnect:
         logger.info("WebSocket client disconnected.")
