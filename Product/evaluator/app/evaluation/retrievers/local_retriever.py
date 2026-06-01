@@ -57,7 +57,7 @@ class LocalRetriever:
         seed_entities = [name for name, _ in seed_entity_scores]
         entity_details = self._fetch_entity_details(seed_entities)
         relationships = self._fetch_subgraph(seed_entities, self.hop_depth)
-        chunks = self._fetch_source_chunks(seed_entities)
+        chunks = self._fetch_source_chunks(seed_entities, qemb)
 
         contexts: list[str] = []
         if entity_details:
@@ -125,17 +125,31 @@ class LocalRetriever:
             edges.add(f"{r['source']} -[{r['predicate']}]-> {r['target']}")
         return "\n".join(sorted(edges))
 
-    def _fetch_source_chunks(self, seed_entities: list[str]) -> str:
-        records, _, _ = self.driver.execute_query(
-            """
-            MATCH (c:Chunk)-[:MENTIONS]->(e:Entity)
-            WHERE e.name IN $seeds
-            RETURN DISTINCT c.text AS text
-            LIMIT $max_chunks
-            """,
-            seeds=seed_entities, max_chunks=self.max_chunks,
-            database_=self.database,
-        )
+    def _fetch_source_chunks(self, seed_entities: list[str], query_embedding: list[float] | None = None) -> str:
+        if query_embedding is not None:
+            records, _, _ = self.driver.execute_query(
+                """
+                MATCH (c:Chunk)-[:MENTIONS]->(e:Entity)
+                WHERE e.name IN $seeds AND c.text_embedding IS NOT NULL
+                WITH c, gds.similarity.cosine(c.text_embedding, $qemb) AS score
+                RETURN DISTINCT c.text AS text, score
+                ORDER BY score DESC
+                LIMIT $max_chunks
+                """,
+                seeds=seed_entities, qemb=query_embedding, max_chunks=self.max_chunks,
+                database_=self.database,
+            )
+        else:
+            records, _, _ = self.driver.execute_query(
+                """
+                MATCH (c:Chunk)-[:MENTIONS]->(e:Entity)
+                WHERE e.name IN $seeds
+                RETURN DISTINCT c.text AS text
+                LIMIT $max_chunks
+                """,
+                seeds=seed_entities, max_chunks=self.max_chunks,
+                database_=self.database,
+            )
         chunks = []
         for i, r in enumerate(records, 1):
             text = (r["text"] or "").replace("\x00", "")

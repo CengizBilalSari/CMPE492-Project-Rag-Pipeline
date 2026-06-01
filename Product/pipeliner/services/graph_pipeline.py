@@ -498,11 +498,11 @@ class GraphRAGPipeline:
                     f"progress:community:{completed}/{total}",
                 )
 
-            task = asyncio.to_thread(
+            task = asyncio.create_task(asyncio.to_thread(
                 self.writer.write_communities,
                 communities,
                 progress_callback=on_progress,
-            )
+            ))
 
             try:
                 while True:
