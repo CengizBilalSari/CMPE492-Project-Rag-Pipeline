@@ -139,6 +139,9 @@ class MSGraphRAGPipeline:
             async for line in self._run_indexing(workspace):
                 yield line
 
+            async for line in self._extract_and_log_tokens(workspace):
+                yield line
+
             self._complete_run(run_id)
             yield "Microsoft GraphRAG indexing completed successfully."
             yield "Pipeline completed."
@@ -217,6 +220,42 @@ class MSGraphRAGPipeline:
                 process.kill()
                 await process.wait()
             raise
+
+    async def _extract_and_log_tokens(self, workspace: Path) -> AsyncGenerator[str, None]:
+        """Parse GraphRAG's reporting logs to calculate and yield token usage."""
+        import json
+        logs_dir = workspace / "logs"
+        if not logs_dir.exists():
+            return
+            
+        total_prompt = 0
+        total_completion = 0
+        
+        for log_file in logs_dir.glob("*"):
+            if log_file.is_file():
+                try:
+                    with open(log_file, "r", encoding="utf-8") as f:
+                        for line in f:
+                            if not line.strip(): continue
+                            try:
+                                data = json.loads(line)
+                                # GraphRAG metrics are sometimes nested in a "metrics" object
+                                if "metrics" in data and isinstance(data["metrics"], dict):
+                                    total_prompt += data["metrics"].get("prompt_tokens", 0)
+                                    total_completion += data["metrics"].get("completion_tokens", 0)
+                                elif "prompt_tokens" in data:
+                                    total_prompt += data.get("prompt_tokens", 0)
+                                    total_completion += data.get("completion_tokens", 0)
+                            except json.JSONDecodeError:
+                                pass
+                except Exception:
+                    pass
+                    
+        total = total_prompt + total_completion
+        if total > 0:
+            msg = f"Token Usage Summary: {total} total tokens (Prompt: {total_prompt}, Completion: {total_completion})"
+            logger.info(msg)
+            yield msg
 
     # ── database tracking ─────────────────────────────────────────
 
