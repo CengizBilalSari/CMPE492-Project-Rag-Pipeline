@@ -1,3 +1,5 @@
+<img width="409" height="404" alt="Screenshot 2026-06-11 131630" src="https://github.com/user-attachments/assets/938b24bc-a0f8-4a98-818f-d84d6b517c23" />
+
 # CMPE492 Project GraphRAG Pipeline
 
 ## Project Structure
